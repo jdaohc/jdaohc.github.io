@@ -1,0 +1,36 @@
+component: scf
+name: weibo-hot-monitor
+
+inputs:
+  name: weibo-hot-monitor
+  region: ap-guangzhou
+  runtime: Nodejs18.15
+  handler: src/tencent-scf.main_handler
+  memorySize: 256
+  timeout: 30
+  src:
+    src: ./
+    exclude:
+      - .git/**
+      - .wrangler/**
+      - .wrangler-config/**
+      - .pnpm-store/**
+      - node_modules/**
+      - test/**
+  triggers:
+    - type: apigw
+      name: weibo-hot-monitor-http
+      parameters:
+        protocols:
+          - https
+        environment: release
+        endpoints:
+          - path: /
+            method: ANY
+            function:
+              isIntegratedResponse: true
+    - type: timer
+      name: weibo-hot-monitor-refresh
+      parameters:
+        cronExpression: "*/5 * * * *"
+        enable: true

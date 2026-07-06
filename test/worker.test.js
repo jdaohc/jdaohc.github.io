@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker, {
+  buildViewPayload,
   fetchWeiboHot,
   filterPublicOpinionItems,
   formatHeat,
-  getHotPayload
+  getHotPayload,
+  parseXinhuaLinks
 } from "../src/worker.js";
 
 test("formats heat values for mobile display", () => {
@@ -134,8 +136,47 @@ test("api defaults to filtered view and supports view=all", async () => {
   assert.equal(allPayload.items.length, 4);
 });
 
+test("parses useful Xinhua links from public pages", () => {
+  const links = parseXinhuaLinks(
+    `
+      <a href="/politics/20260706/example-id/c.html">国务院部署防汛救灾和民生保障工作</a>
+      <a href="javascript:void(0)">更多</a>
+      <a href="https://www.news.cn/legal/20260706/court-id/c.html"><span>法院通报电信诈骗案件审理情况</span></a>
+    `,
+    "https://www.news.cn/"
+  );
+
+  assert.deepEqual(
+    links.map((link) => link.title),
+    ["国务院部署防汛救灾和民生保障工作", "法院通报电信诈骗案件审理情况"]
+  );
+  assert.equal(links[0].url, "https://www.news.cn/politics/20260706/example-id/c.html");
+});
+
+test("filters the aggregated payload by source", () => {
+  const payload = {
+    ok: true,
+    source: "live",
+    updatedAt: Date.now(),
+    updatedAtText: "07/06 10:00:00",
+    items: [
+      { ...topic("广西洪水"), source: "weibo", sourceName: "微博" },
+      { ...topic("国务院部署防汛救灾和民生保障工作"), source: "xinhua", sourceName: "新华网/新华社", label: "新华" }
+    ],
+    error: null
+  };
+
+  const xinhua = buildViewPayload(payload, "filtered", "xinhua");
+  assert.equal(xinhua.sourceFilter, "xinhua");
+  assert.equal(xinhua.totalItems, 1);
+  assert.equal(xinhua.items[0].source, "xinhua");
+
+  const all = buildViewPayload(payload, "all", "all");
+  assert.deepEqual(all.sourceCounts, { all: 2, weibo: 1, xinhua: 1 });
+});
+
 function topic(title) {
-  return { rank: 1, title, word: title, heat: "1万", label: "热", url: "#", isNew: false };
+  return { rank: 1, source: "weibo", sourceName: "微博", title, word: title, heat: "1万", label: "热", url: "#", isNew: false };
 }
 
 function installCache(payload) {

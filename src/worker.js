@@ -1,6 +1,11 @@
 const CACHE_KEY = "https://weibo-hot-monitor.local/cache/v1/hot";
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const CACHE_TTL_SECONDS = 60 * 60 * 24;
+const XINHUA_SECTIONS = [
+  "https://www.news.cn/",
+  "https://www.news.cn/politics/",
+  "https://www.news.cn/legal/"
+];
 const USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
@@ -11,8 +16,9 @@ export default {
     if (url.pathname === "/api/hot") {
       const force = url.searchParams.get("force") === "1";
       const view = normalizeView(url.searchParams.get("view"));
+      const sourceFilter = normalizeSourceFilter(url.searchParams.get("source"));
       const payload = await getHotPayload({ force, ctx });
-      return json(toViewPayload(payload, view), payload.ok ? 200 : 503);
+      return json(buildViewPayload(payload, view, sourceFilter), payload.ok ? 200 : 503);
     }
 
     if (url.pathname === "/health") {
@@ -41,19 +47,19 @@ export async function getHotPayload({ force = false, ctx } = {}) {
   }
 
   try {
-    const currentItems = await retry(fetchWeiboHot, 3, 650);
-    const previousWords = new Set((cached?.items ?? []).map((item) => item.word));
+    const currentItems = await fetchAllHotSources(cached);
+    const previousWords = new Set((cached?.items ?? []).map((item) => `${item.source || "weibo"}:${item.word}`));
     const seen = new Set();
     const items = currentItems
       .filter((item) => {
-        const key = item.word.toLowerCase();
+        const key = `${item.source || "weibo"}:${item.word}`.toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       })
       .map((item) => ({
         ...item,
-        isNew: cached ? !previousWords.has(item.word) : false
+        isNew: cached ? !previousWords.has(`${item.source || "weibo"}:${item.word}`) : false
       }));
 
     const payload = {
@@ -93,12 +99,23 @@ export async function getHotPayload({ force = false, ctx } = {}) {
 
 export function toViewPayload(payload, view = "filtered") {
   const normalizedView = normalizeView(view);
-  const sourceItems = Array.isArray(payload.items) ? payload.items : [];
+  return buildViewPayload(payload, normalizedView, "all");
+}
+
+export function buildViewPayload(payload, view = "filtered", sourceFilter = "all") {
+  const normalizedView = normalizeView(view);
+  const normalizedSource = normalizeSourceFilter(sourceFilter);
+  const allItems = Array.isArray(payload.items) ? payload.items : [];
+  const sourceItems = normalizedSource === "all"
+    ? allItems
+    : allItems.filter((item) => (item.source || "weibo") === normalizedSource);
   const items = normalizedView === "all" ? sourceItems : filterPublicOpinionItems(sourceItems);
 
   return {
     ...payload,
     view: normalizedView,
+    sourceFilter: normalizedSource,
+    sourceCounts: countSources(allItems),
     totalItems: sourceItems.length,
     visibleItems: items.length,
     items
@@ -110,7 +127,7 @@ export function filterPublicOpinionItems(items) {
 }
 
 export function isPublicOpinionItem(item) {
-  const text = `${item?.title ?? ""} ${item?.word ?? ""} ${item?.label ?? ""}`.toLowerCase();
+  const text = `${item?.title ?? ""} ${item?.word ?? ""} ${item?.label ?? ""} ${item?.sourceName ?? ""}`.toLowerCase();
   if (!text.trim()) return false;
 
   if (containsAny(text, STRONG_PUBLIC_OPINION_KEYWORDS)) return true;
@@ -118,6 +135,32 @@ export function isPublicOpinionItem(item) {
   if (containsAny(text, FOREIGN_KEYWORDS) && !containsAny(text, DOMESTIC_CONTEXT_KEYWORDS)) return false;
 
   return containsAny(text, PUBLIC_OPINION_KEYWORDS);
+}
+
+export async function fetchAllHotSources(cached) {
+  const previousBySource = groupCachedItemsBySource(cached?.items ?? []);
+  const [weibo, xinhua] = await Promise.all([
+    fetchSourceWithFallback("weibo", fetchWeiboHot, previousBySource),
+    fetchSourceWithFallback("xinhua", fetchXinhuaHot, previousBySource)
+  ]);
+
+  if (!weibo.ok && !xinhua.ok) throw new Error("All hot sources failed");
+  const items = dedupeAcrossSources([...weibo.items, ...xinhua.items]);
+  if (!items.length) throw new Error("All hot sources failed");
+  return items;
+}
+
+async function fetchSourceWithFallback(source, fetcher, previousBySource) {
+  try {
+    return { source, ok: true, items: await retry(fetcher, 3, 650), error: null };
+  } catch (error) {
+    return {
+      source,
+      ok: false,
+      items: previousBySource.get(source) ?? [],
+      error: readableError(error)
+    };
+  }
 }
 
 export async function fetchWeiboHot() {
@@ -148,6 +191,8 @@ export async function fetchWeiboHot() {
       const word = String(item.word || item.note || "").trim();
       return {
         rank: index + 1,
+        source: "weibo",
+        sourceName: "微博",
         title: String(item.note || word).trim(),
         word,
         heat: formatHeat(item.raw_hot ?? item.num ?? item.hot_num ?? item.onboard_time),
@@ -157,8 +202,170 @@ export async function fetchWeiboHot() {
     });
 }
 
+export async function fetchXinhuaHot() {
+  const pages = await Promise.all(
+    XINHUA_SECTIONS.map(async (url) => ({
+      url,
+      html: await fetchText(url)
+    }))
+  );
+  const seen = new Set();
+  const items = [];
+
+  for (const page of pages) {
+    for (const link of parseXinhuaLinks(page.html, page.url)) {
+      const key = normalizeTopicKey(link.title);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        rank: items.length + 1,
+        source: "xinhua",
+        sourceName: "新华网/新华社",
+        title: link.title,
+        word: link.title,
+        heat: "新华网",
+        label: "新华",
+        url: link.url
+      });
+      if (items.length >= 50) return items;
+    }
+  }
+
+  if (!items.length) throw new Error("No Xinhua links found");
+  return items;
+}
+
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: {
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+      "user-agent": USER_AGENT
+    },
+    cf: { cacheTtl: 120, cacheEverything: false }
+  });
+
+  if (!response.ok) throw new Error(`${url} responded with HTTP ${response.status}`);
+  return response.text();
+}
+
+export function parseXinhuaLinks(html, baseUrl = "https://www.news.cn/") {
+  const links = [];
+  const anchorPattern = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+
+  while ((match = anchorPattern.exec(html))) {
+    const url = toAbsoluteUrl(match[1], baseUrl);
+    const title = cleanHtmlText(match[2]);
+    if (!url || !isXinhuaArticleUrl(url) || !isUsefulXinhuaTitle(title)) continue;
+    links.push({ title, url });
+  }
+
+  return links;
+}
+
+function isXinhuaArticleUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const isAllowedHost =
+      host === "news.cn" ||
+      host.endsWith(".news.cn") ||
+      host === "xinhuanet.com" ||
+      host.endsWith(".xinhuanet.com") ||
+      host === "piyao.org.cn" ||
+      host.endsWith(".piyao.org.cn");
+    return isAllowedHost && /\/20\d{6}\/.+\/c\.html/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isUsefulXinhuaTitle(title) {
+  if (title.length < 6 || title.length > 80) return false;
+  if (/^(新华网|新华社|首页|更多|视频|图片|客户端|English)$/i.test(title)) return false;
+  if (/[{}<>]/.test(title)) return false;
+  return /[\u4e00-\u9fa5]/.test(title);
+}
+
+function cleanHtmlText(html) {
+  return decodeHtmlEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function toAbsoluteUrl(href, baseUrl) {
+  if (!href || href.startsWith("javascript:") || href.startsWith("#")) return "";
+  try {
+    return new URL(href, baseUrl).toString();
+  } catch {
+    return "";
+  }
+}
+
 function normalizeView(view) {
   return view === "all" ? "all" : "filtered";
+}
+
+function normalizeSourceFilter(source) {
+  return source === "weibo" || source === "xinhua" ? source : "all";
+}
+
+function groupCachedItemsBySource(items) {
+  const grouped = new Map();
+  for (const item of items) {
+    const source = item?.source || "weibo";
+    const current = grouped.get(source) ?? [];
+    current.push(item);
+    grouped.set(source, current);
+  }
+  return grouped;
+}
+
+function dedupeAcrossSources(items) {
+  const seen = new Set();
+  const deduped = [];
+  for (const item of items) {
+    const key = normalizeTopicKey(item.title || item.word);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+  return deduped.map((item, index) => ({ ...item, rank: index + 1 }));
+}
+
+function normalizeTopicKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{Script=Han}a-z0-9]/gu, "")
+    .slice(0, 40);
+}
+
+function countSources(items) {
+  return items.reduce(
+    (counts, item) => {
+      if (item?.source === "weibo") counts.weibo += 1;
+      if (item?.source === "xinhua") counts.xinhua += 1;
+      counts.all += 1;
+      return counts;
+    },
+    { all: 0, weibo: 0, xinhua: 0 }
+  );
 }
 
 function containsAny(text, keywords) {
@@ -214,6 +421,8 @@ const PUBLIC_OPINION_KEYWORDS = [
   "国内",
   "官方",
   "政府",
+  "国务院",
+  "部门",
   "政策",
   "规划",
   "法规",
@@ -253,6 +462,10 @@ const PUBLIC_OPINION_KEYWORDS = [
   "低温",
   "灾害",
   "应急",
+  "防汛",
+  "抗旱",
+  "救灾物资",
+  "应急响应",
   "安全",
   "刑事",
   "案件",
@@ -271,6 +484,8 @@ const PUBLIC_OPINION_KEYWORDS = [
   "职场",
   "企业",
   "平台",
+  "网络平台",
+  "专项整治",
   "ai应用"
 ];
 
@@ -544,7 +759,14 @@ function renderPage() {
       margin: 0 0 10px;
     }
 
-    .mode {
+    .sourcebar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 10px;
+    }
+
+    .mode, .source {
       min-height: 38px;
       display: inline-flex;
       align-items: center;
@@ -559,7 +781,13 @@ function renderPage() {
       white-space: nowrap;
     }
 
-    .mode.active {
+    .source {
+      min-height: 36px;
+      font-size: 13px;
+      padding: 0 4px;
+    }
+
+    .mode.active, .source.active {
       border-color: var(--text);
       background: var(--text);
       color: #fff;
@@ -716,6 +944,12 @@ function renderPage() {
       <a class="mode" id="filteredMode" href="/">舆情筛选</a>
       <a class="mode" id="allMode" href="/?view=all">全部热搜</a>
     </section>
+    <section class="sourcebar" aria-label="热点来源">
+      <a class="source" id="sourceAll" href="/">综合</a>
+      <a class="source" id="sourceWeibo" href="/?source=weibo">微博</a>
+      <a class="source" id="sourceXinhua" href="/?source=xinhua">新华网</a>
+      <a class="source" id="sourceRawAll" href="/?view=all&source=all">全量</a>
+    </section>
     <section class="notice" id="notice"></section>
     <section class="list" id="list"></section>
   </main>
@@ -723,7 +957,8 @@ function renderPage() {
   <script>
     const params = new URLSearchParams(window.location.search);
     const initialView = params.get("view") === "all" ? "all" : "filtered";
-    const state = { items: [], query: "", view: initialView, totalItems: 0, visibleItems: 0 };
+    const initialSource = ["weibo", "xinhua"].includes(params.get("source")) ? params.get("source") : "all";
+    const state = { items: [], query: "", view: initialView, sourceFilter: initialSource, totalItems: 0, visibleItems: 0, sourceCounts: { all: 0, weibo: 0, xinhua: 0 } };
     const list = document.querySelector("#list");
     const updated = document.querySelector("#updated");
     const status = document.querySelector("#status");
@@ -732,6 +967,10 @@ function renderPage() {
     const refresh = document.querySelector("#refresh");
     const filteredMode = document.querySelector("#filteredMode");
     const allMode = document.querySelector("#allMode");
+    const sourceAll = document.querySelector("#sourceAll");
+    const sourceWeibo = document.querySelector("#sourceWeibo");
+    const sourceXinhua = document.querySelector("#sourceXinhua");
+    const sourceRawAll = document.querySelector("#sourceRawAll");
 
     filter.addEventListener("input", () => {
       state.query = filter.value.trim().toLowerCase();
@@ -749,13 +988,16 @@ function renderPage() {
       try {
         const apiParams = new URLSearchParams();
         apiParams.set("view", state.view);
+        apiParams.set("source", state.sourceFilter);
         if (force) apiParams.set("force", "1");
         const res = await fetch("/api/hot?" + apiParams.toString(), { cache: "no-store" });
         const data = await res.json();
         state.items = Array.isArray(data.items) ? data.items : [];
         state.view = data.view === "all" ? "all" : "filtered";
+        state.sourceFilter = ["weibo", "xinhua"].includes(data.sourceFilter) ? data.sourceFilter : "all";
         state.totalItems = Number(data.totalItems || state.items.length);
         state.visibleItems = Number(data.visibleItems || state.items.length);
+        state.sourceCounts = data.sourceCounts || state.sourceCounts;
         updated.textContent = data.updatedAtText ? "最后更新 " + data.updatedAtText : "--";
         notice.style.display = data.error ? "block" : "none";
         notice.textContent = data.error || "";
@@ -792,7 +1034,7 @@ function renderPage() {
               <span>\${escapeHtml(item.title)}</span>
               \${item.isNew ? '<span class="new">新</span>' : ''}
             </div>
-            <div class="heat">热度 \${escapeHtml(item.heat || "暂无")}</div>
+            <div class="heat">\${escapeHtml(item.sourceName || "热点")} · 热度 \${escapeHtml(item.heat || "暂无")}</div>
           </div>
           <div class="badge">\${escapeHtml(item.label || "热")}</div>
         </a>
@@ -807,6 +1049,14 @@ function renderPage() {
         : "全部 " + state.totalItems;
       filteredMode.textContent = "舆情筛选";
       allMode.textContent = "全部热搜";
+      sourceAll.classList.toggle("active", state.sourceFilter === "all" && state.view === "filtered");
+      sourceWeibo.classList.toggle("active", state.sourceFilter === "weibo");
+      sourceXinhua.classList.toggle("active", state.sourceFilter === "xinhua");
+      sourceRawAll.classList.toggle("active", state.sourceFilter === "all" && state.view === "all");
+      sourceAll.textContent = "综合";
+      sourceWeibo.textContent = "微博";
+      sourceXinhua.textContent = "新华网";
+      sourceRawAll.textContent = "全量";
       updated.textContent = updated.textContent + " · " + suffix;
     }
 
