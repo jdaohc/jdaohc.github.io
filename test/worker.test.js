@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchWeiboHot, formatHeat, getHotPayload } from "../src/worker.js";
+import worker, {
+  fetchWeiboHot,
+  filterPublicOpinionItems,
+  formatHeat,
+  getHotPayload
+} from "../src/worker.js";
 
 test("formats heat values for mobile display", () => {
   assert.equal(formatHeat(0), "暂无");
@@ -79,6 +84,59 @@ test("marks newly entered topics after refresh", async () => {
   assert.equal(payload.items[0].isNew, false);
   assert.equal(payload.items[1].isNew, true);
 });
+
+test("keeps public opinion topics and filters foreign or entertainment topics", () => {
+  const items = [
+    topic("广西洪水"),
+    topic("2人造谣人贩抓人卖器官被行政处罚"),
+    topic("博物馆通报国家一级文物现TCL字样"),
+    topic("美国队红牌引发全球二创热潮"),
+    topic("印度嫌犯奸杀12岁女孩遭民众打死"),
+    topic("王俊凯坚持只买1980内场"),
+    topic("迪丽热巴代言投广功夫女足")
+  ];
+
+  assert.deepEqual(
+    filterPublicOpinionItems(items).map((item) => item.title),
+    ["广西洪水", "2人造谣人贩抓人卖器官被行政处罚", "博物馆通报国家一级文物现TCL字样"]
+  );
+});
+
+test("api defaults to filtered view and supports view=all", async () => {
+  installCache(null);
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: {
+          realtime: [
+            { word: "广西洪水", note: "广西洪水", raw_hot: 100000, label_name: "热" },
+            { word: "美国队红牌引发全球二创热潮", note: "美国队红牌引发全球二创热潮", raw_hot: 90000, label_name: "热" },
+            { word: "博物馆通报国家一级文物现TCL字样", note: "博物馆通报国家一级文物现TCL字样", raw_hot: 80000, label_name: "新" },
+            { word: "王俊凯坚持只买1980内场", note: "王俊凯坚持只买1980内场", raw_hot: 70000, label_name: "新" }
+          ]
+        }
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+
+  const filtered = await worker.fetch(new Request("https://example.com/api/hot?force=1"));
+  const filteredPayload = await filtered.json();
+  assert.equal(filteredPayload.view, "filtered");
+  assert.equal(filteredPayload.totalItems, 4);
+  assert.deepEqual(
+    filteredPayload.items.map((item) => item.title),
+    ["广西洪水", "博物馆通报国家一级文物现TCL字样"]
+  );
+
+  const all = await worker.fetch(new Request("https://example.com/api/hot?view=all"));
+  const allPayload = await all.json();
+  assert.equal(allPayload.view, "all");
+  assert.equal(allPayload.items.length, 4);
+});
+
+function topic(title) {
+  return { rank: 1, title, word: title, heat: "1万", label: "热", url: "#", isNew: false };
+}
 
 function installCache(payload) {
   let stored = payload;

@@ -10,8 +10,9 @@ export default {
 
     if (url.pathname === "/api/hot") {
       const force = url.searchParams.get("force") === "1";
+      const view = normalizeView(url.searchParams.get("view"));
       const payload = await getHotPayload({ force, ctx });
-      return json(payload, payload.ok ? 200 : 503);
+      return json(toViewPayload(payload, view), payload.ok ? 200 : 503);
     }
 
     if (url.pathname === "/health") {
@@ -90,6 +91,35 @@ export async function getHotPayload({ force = false, ctx } = {}) {
   }
 }
 
+export function toViewPayload(payload, view = "filtered") {
+  const normalizedView = normalizeView(view);
+  const sourceItems = Array.isArray(payload.items) ? payload.items : [];
+  const items = normalizedView === "all" ? sourceItems : filterPublicOpinionItems(sourceItems);
+
+  return {
+    ...payload,
+    view: normalizedView,
+    totalItems: sourceItems.length,
+    visibleItems: items.length,
+    items
+  };
+}
+
+export function filterPublicOpinionItems(items) {
+  return items.filter(isPublicOpinionItem);
+}
+
+export function isPublicOpinionItem(item) {
+  const text = `${item?.title ?? ""} ${item?.word ?? ""} ${item?.label ?? ""}`.toLowerCase();
+  if (!text.trim()) return false;
+
+  if (containsAny(text, STRONG_PUBLIC_OPINION_KEYWORDS)) return true;
+  if (containsAny(text, EXCLUDE_KEYWORDS)) return false;
+  if (containsAny(text, FOREIGN_KEYWORDS) && !containsAny(text, DOMESTIC_CONTEXT_KEYWORDS)) return false;
+
+  return containsAny(text, PUBLIC_OPINION_KEYWORDS);
+}
+
 export async function fetchWeiboHot() {
   const response = await fetch("https://weibo.com/ajax/side/hotSearch", {
     headers: {
@@ -126,6 +156,213 @@ export async function fetchWeiboHot() {
       };
     });
 }
+
+function normalizeView(view) {
+  return view === "all" ? "all" : "filtered";
+}
+
+function containsAny(text, keywords) {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+const STRONG_PUBLIC_OPINION_KEYWORDS = [
+  "辟谣",
+  "通报",
+  "处罚",
+  "立案",
+  "判刑",
+  "死刑",
+  "救援",
+  "救灾",
+  "暴雨",
+  "洪水",
+  "台风",
+  "地震",
+  "火灾",
+  "事故",
+  "诈骗",
+  "造谣",
+  "维权",
+  "举报",
+  "调查",
+  "回应",
+  "警方",
+  "公安",
+  "法院",
+  "检察",
+  "监管",
+  "整治",
+  "专项行动",
+  "公共安全",
+  "食品安全",
+  "校园",
+  "医院",
+  "医保",
+  "高考",
+  "中考",
+  "义务教育",
+  "房租",
+  "欠薪",
+  "就业",
+  "消费者",
+  "侵权"
+];
+
+const PUBLIC_OPINION_KEYWORDS = [
+  "中国",
+  "全国",
+  "国内",
+  "官方",
+  "政府",
+  "政策",
+  "规划",
+  "法规",
+  "条例",
+  "民生",
+  "社会",
+  "市民",
+  "居民",
+  "群众",
+  "网友",
+  "老人",
+  "儿童",
+  "未成年人",
+  "学生",
+  "老师",
+  "学校",
+  "教育",
+  "医疗",
+  "医生",
+  "护士",
+  "患者",
+  "药",
+  "社保",
+  "养老",
+  "住房",
+  "房价",
+  "物业",
+  "交通",
+  "地铁",
+  "公交",
+  "铁路",
+  "航班",
+  "高速",
+  "天气",
+  "降雨",
+  "高温",
+  "低温",
+  "灾害",
+  "应急",
+  "安全",
+  "刑事",
+  "案件",
+  "嫌疑人",
+  "违法",
+  "犯罪",
+  "市场",
+  "消费",
+  "价格",
+  "收费",
+  "文物",
+  "博物馆",
+  "环保",
+  "污染",
+  "劳动",
+  "职场",
+  "企业",
+  "平台",
+  "ai应用"
+];
+
+const DOMESTIC_CONTEXT_KEYWORDS = [
+  "中国",
+  "我国",
+  "国内",
+  "广西",
+  "北京",
+  "上海",
+  "广东",
+  "深圳",
+  "广州",
+  "浙江",
+  "江苏",
+  "山东",
+  "河南",
+  "河北",
+  "四川",
+  "重庆",
+  "湖南",
+  "湖北",
+  "福建",
+  "江西",
+  "安徽",
+  "山西",
+  "陕西",
+  "辽宁",
+  "吉林",
+  "黑龙江",
+  "云南",
+  "贵州",
+  "甘肃",
+  "青海",
+  "海南",
+  "内蒙古",
+  "新疆",
+  "西藏",
+  "宁夏",
+  "香港",
+  "澳门",
+  "台湾"
+];
+
+const FOREIGN_KEYWORDS = [
+  "美国",
+  "日本",
+  "韩国",
+  "印度",
+  "英国",
+  "法国",
+  "德国",
+  "俄罗斯",
+  "乌克兰",
+  "以色列",
+  "伊朗",
+  "欧洲",
+  "海外",
+  "国外",
+  "外媒",
+  "fifa",
+  "欧足联",
+  "世界杯"
+];
+
+const EXCLUDE_KEYWORDS = [
+  "演唱会",
+  "新歌",
+  "代言",
+  "探班",
+  "比基尼",
+  "手机壳",
+  "应援",
+  "粉丝",
+  "饭圈",
+  "综艺",
+  "电影",
+  "电视剧",
+  "短剧",
+  "票房",
+  "刺棠",
+  "part",
+  "神图",
+  "足球明星",
+  "红牌",
+  "战胜",
+  "比赛",
+  "电竞",
+  "游戏",
+  "dior",
+  "lv"
+];
 
 async function retry(fn, attempts, delayMs) {
   let lastError;
@@ -300,6 +537,34 @@ function renderPage() {
       margin: 4px 0 12px;
     }
 
+    .modebar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 10px;
+    }
+
+    .mode {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .mode.active {
+      border-color: var(--text);
+      background: var(--text);
+      color: #fff;
+    }
+
     .search {
       width: 100%;
       min-height: 44px;
@@ -447,18 +712,26 @@ function renderPage() {
       <input class="search" id="filter" type="search" placeholder="搜索榜单" autocomplete="off">
       <button id="refresh" type="button" aria-label="刷新">↻</button>
     </section>
+    <section class="modebar" aria-label="热点视图">
+      <a class="mode" id="filteredMode" href="/">舆情筛选</a>
+      <a class="mode" id="allMode" href="/?view=all">全部热搜</a>
+    </section>
     <section class="notice" id="notice"></section>
     <section class="list" id="list"></section>
   </main>
 
   <script>
-    const state = { items: [], query: "" };
+    const params = new URLSearchParams(window.location.search);
+    const initialView = params.get("view") === "all" ? "all" : "filtered";
+    const state = { items: [], query: "", view: initialView, totalItems: 0, visibleItems: 0 };
     const list = document.querySelector("#list");
     const updated = document.querySelector("#updated");
     const status = document.querySelector("#status");
     const notice = document.querySelector("#notice");
     const filter = document.querySelector("#filter");
     const refresh = document.querySelector("#refresh");
+    const filteredMode = document.querySelector("#filteredMode");
+    const allMode = document.querySelector("#allMode");
 
     filter.addEventListener("input", () => {
       state.query = filter.value.trim().toLowerCase();
@@ -474,14 +747,21 @@ function renderPage() {
       status.innerHTML = '<span class="dot"></span><span>更新中</span>';
       status.style.color = "var(--green)";
       try {
-        const res = await fetch("/api/hot" + (force ? "?force=1" : ""), { cache: "no-store" });
+        const apiParams = new URLSearchParams();
+        apiParams.set("view", state.view);
+        if (force) apiParams.set("force", "1");
+        const res = await fetch("/api/hot?" + apiParams.toString(), { cache: "no-store" });
         const data = await res.json();
         state.items = Array.isArray(data.items) ? data.items : [];
+        state.view = data.view === "all" ? "all" : "filtered";
+        state.totalItems = Number(data.totalItems || state.items.length);
+        state.visibleItems = Number(data.visibleItems || state.items.length);
         updated.textContent = data.updatedAtText ? "最后更新 " + data.updatedAtText : "--";
         notice.style.display = data.error ? "block" : "none";
         notice.textContent = data.error || "";
         status.innerHTML = '<span class="dot"></span><span>' + statusText(data.source) + '</span>';
         status.style.color = data.source === "stale-cache" ? "var(--amber)" : "var(--green)";
+        renderMode();
         renderList();
       } catch (error) {
         status.innerHTML = '<span class="dot"></span><span>连接失败</span>';
@@ -497,7 +777,10 @@ function renderPage() {
         : state.items;
 
       if (!items.length) {
-        list.innerHTML = '<div class="empty">暂无热点数据。</div>';
+        const message = state.view === "filtered"
+          ? "当前没有匹配的舆情热点，可切换到全部热搜查看。"
+          : "暂无热点数据。";
+        list.innerHTML = '<div class="empty">' + message + '</div>';
         return;
       }
 
@@ -514,6 +797,17 @@ function renderPage() {
           <div class="badge">\${escapeHtml(item.label || "热")}</div>
         </a>
       \`).join("");
+    }
+
+    function renderMode() {
+      filteredMode.classList.toggle("active", state.view === "filtered");
+      allMode.classList.toggle("active", state.view === "all");
+      const suffix = state.view === "filtered"
+        ? "舆情 " + state.visibleItems + "/" + state.totalItems
+        : "全部 " + state.totalItems;
+      filteredMode.textContent = "舆情筛选";
+      allMode.textContent = "全部热搜";
+      updated.textContent = updated.textContent + " · " + suffix;
     }
 
     function statusText(source) {
