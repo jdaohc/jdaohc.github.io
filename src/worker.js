@@ -6,6 +6,21 @@ const XINHUA_SECTIONS = [
   "https://www.news.cn/politics/",
   "https://www.news.cn/legal/"
 ];
+const TOUTIAO_HOT_URL = "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc";
+const PEOPLE_RSS_URL = "https://www.people.com.cn/rss/politics.xml";
+const OTHER_NEWS_RSS_URL = "https://www.chinanews.com.cn/rss/china.xml";
+const ZHIHU_BILLBOARD_URL = "https://www.zhihu.com/billboard";
+const DOUYIN_PUBLIC_HOT_URL = "https://www.douyin.com/aweme/v1/web/hot/search/list/";
+const SOURCE_DEFINITIONS = [
+  { id: "weibo", name: "\u5fae\u535a", fetcher: fetchWeiboHot },
+  { id: "xinhua", name: "\u65b0\u534e\u7f51/\u65b0\u534e\u793e", fetcher: fetchXinhuaHot },
+  { id: "toutiao", name: "\u4eca\u65e5\u5934\u6761", fetcher: fetchToutiaoHot },
+  { id: "douyin", name: "\u6296\u97f3", fetcher: fetchDouyinHot },
+  { id: "people", name: "\u4eba\u6c11\u65e5\u62a5", fetcher: fetchPeopleDailyHot },
+  { id: "news", name: "\u5176\u4ed6\u65b0\u95fb", fetcher: fetchOtherNewsHot },
+  { id: "zhihu", name: "\u77e5\u4e4e", fetcher: fetchZhihuHot }
+];
+const SOURCE_IDS = SOURCE_DEFINITIONS.map((source) => source.id);
 const USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
@@ -47,28 +62,31 @@ export async function getHotPayload({ force = false, ctx } = {}) {
   }
 
   try {
-    const currentItems = await fetchAllHotSources(cached);
-    const previousWords = new Set((cached?.items ?? []).map((item) => `${item.source || "weibo"}:${item.word}`));
+    const result = await fetchAllHotSources(cached);
+    const previousWords = new Set((cached?.items ?? []).map((item) => `${item.source || "weibo"}:${item.word || item.title}`));
     const seen = new Set();
-    const items = currentItems
+    const items = result.items
       .filter((item) => {
-        const key = `${item.source || "weibo"}:${item.word}`.toLowerCase();
+        const key = `${item.source || "weibo"}:${item.word || item.title}`.toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       })
-      .map((item) => ({
-        ...item,
-        isNew: cached ? !previousWords.has(`${item.source || "weibo"}:${item.word}`) : false
-      }));
+      .map((item) => {
+        const isNew = cached ? !previousWords.has(`${item.source || "weibo"}:${item.word || item.title}`) : false;
+        return { ...item, isNew, is_new: isNew };
+      });
 
     const payload = {
       ok: true,
-      source: "live",
+      source: result.statuses.some((status) => status.ok) ? "live" : "stale-cache",
       updatedAt: Date.now(),
       updatedAtText: formatDate(Date.now()),
       items,
-      error: null
+      sourceStatus: result.statuses,
+      error: result.statuses.some((status) => status.ok)
+        ? null
+        : "\u90e8\u5206\u70ed\u70b9\u6765\u6e90\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u6b63\u5728\u5c55\u793a\u6700\u8fd1\u4e00\u6b21\u6210\u529f\u7f13\u5b58\u3002"
     };
 
     const write = writeCache(payload);
@@ -82,7 +100,7 @@ export async function getHotPayload({ force = false, ctx } = {}) {
         ...cached,
         ok: true,
         source: "stale-cache",
-        error: "微博接口暂时不可用，正在展示最近一次成功缓存。"
+        error: "\u90e8\u5206\u70ed\u70b9\u6765\u6e90\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u6b63\u5728\u5c55\u793a\u6700\u8fd1\u4e00\u6b21\u6210\u529f\u7f13\u5b58\u3002"
       };
     }
 
@@ -92,6 +110,14 @@ export async function getHotPayload({ force = false, ctx } = {}) {
       updatedAt: Date.now(),
       updatedAtText: formatDate(Date.now()),
       items: [],
+      sourceStatus: SOURCE_DEFINITIONS.map((source) => ({
+        id: source.id,
+        name: source.name,
+        ok: false,
+        fallback: false,
+        count: 0,
+        error: readableError(error)
+      })),
       error: readableError(error)
     };
   }
@@ -106,9 +132,10 @@ export function buildViewPayload(payload, view = "filtered", sourceFilter = "all
   const normalizedView = normalizeView(view);
   const normalizedSource = normalizeSourceFilter(sourceFilter);
   const allItems = Array.isArray(payload.items) ? payload.items : [];
-  const sourceItems = normalizedSource === "all"
+  const sourceItems = (normalizedSource === "all"
     ? allItems
-    : allItems.filter((item) => (item.source || "weibo") === normalizedSource);
+    : allItems.filter((item) => (item.source || "weibo") === normalizedSource))
+    .filter((item) => isRecentPublicOpinionItem(item));
   const items = normalizedView === "all" ? sourceItems : filterPublicOpinionItems(sourceItems);
 
   return {
@@ -116,6 +143,7 @@ export function buildViewPayload(payload, view = "filtered", sourceFilter = "all
     view: normalizedView,
     sourceFilter: normalizedSource,
     sourceCounts: countSources(allItems),
+    sourceStatus: payload.sourceStatus || [],
     totalItems: sourceItems.length,
     visibleItems: items.length,
     items
@@ -138,32 +166,38 @@ export function isPublicOpinionItem(item) {
 }
 
 export function isRecentPublicOpinionItem(item, now = new Date()) {
-  if ((item?.source || "weibo") !== "xinhua") return true;
   if (!item?.dateKey) return false;
   return getRecentChinaDateKeys(now).has(item.dateKey);
 }
 
 export async function fetchAllHotSources(cached) {
   const previousBySource = groupCachedItemsBySource(cached?.items ?? []);
-  const [weibo, xinhua] = await Promise.all([
-    fetchSourceWithFallback("weibo", fetchWeiboHot, previousBySource),
-    fetchSourceWithFallback("xinhua", fetchXinhuaHot, previousBySource)
-  ]);
+  const results = await Promise.all(
+    SOURCE_DEFINITIONS.map((source) => fetchSourceWithFallback(source, previousBySource))
+  );
 
-  if (!weibo.ok && !xinhua.ok) throw new Error("All hot sources failed");
-  const items = dedupeAcrossSources([...weibo.items, ...xinhua.items]);
+  if (results.every((result) => !result.ok && !result.items.length)) throw new Error("All hot sources failed");
+  const items = dedupeAcrossSources(results.flatMap((result) => result.items));
   if (!items.length) throw new Error("All hot sources failed");
-  return items;
+  return {
+    items,
+    statuses: results.map(({ id, name, ok, fallback, error, count }) => ({ id, name, ok, fallback, error, count }))
+  };
 }
 
-async function fetchSourceWithFallback(source, fetcher, previousBySource) {
+async function fetchSourceWithFallback(source, previousBySource) {
   try {
-    return { source, ok: true, items: await retry(fetcher, 3, 650), error: null };
+    const items = await retry(source.fetcher, 2, 650);
+    return { id: source.id, name: source.name, ok: true, fallback: false, items, count: items.length, error: null };
   } catch (error) {
+    const fallbackItems = previousBySource.get(source.id) ?? [];
     return {
-      source,
+      id: source.id,
+      name: source.name,
       ok: false,
-      items: previousBySource.get(source) ?? [],
+      fallback: Boolean(fallbackItems.length),
+      items: fallbackItems,
+      count: fallbackItems.length,
       error: readableError(error)
     };
   }
@@ -190,21 +224,28 @@ export async function fetchWeiboHot() {
     throw new Error("Unexpected Weibo response shape");
   }
 
+  const now = new Date();
   return rawItems
     .filter((item) => item?.word || item?.note)
     .slice(0, 50)
     .map((item, index) => {
       const word = String(item.word || item.note || "").trim();
-      return {
+      const hotValue = item.raw_hot ?? item.num ?? item.hot_num ?? item.onboard_time ?? 0;
+      const tag = normalizeLabel(item.label_name || item.category || item.icon_desc);
+      return normalizeHotItem({
         rank: index + 1,
         source: "weibo",
-        sourceName: "微博",
+        sourceName: "\u5fae\u535a",
         title: String(item.note || word).trim(),
         word,
-        heat: formatHeat(item.raw_hot ?? item.num ?? item.hot_num ?? item.onboard_time),
-        label: normalizeLabel(item.label_name || item.category || item.icon_desc),
+        hot_value: hotValue,
+        heat: formatHeat(hotValue),
+        tag,
+        label: tag,
+        publish_time: now.toISOString(),
+        dateKey: getChinaDateKey(now),
         url: `https://s.weibo.com/weibo?q=${encodeURIComponent(word)}&Refer=top`
-      };
+      });
     });
 }
 
@@ -223,23 +264,152 @@ export async function fetchXinhuaHot() {
       const key = normalizeTopicKey(link.title);
       if (!key || seen.has(key)) continue;
       seen.add(key);
-      items.push({
+      items.push(normalizeHotItem({
         rank: items.length + 1,
         source: "xinhua",
         sourceName: "\u65b0\u534e\u7f51/\u65b0\u534e\u793e",
         title: link.title,
         word: link.title,
+        hot_value: "\u65b0\u534e\u7f51",
         heat: "\u65b0\u534e\u7f51",
+        tag: "\u65b0\u534e",
         label: "\u65b0\u534e",
+        publish_time: dateKeyToIso(link.dateKey),
         url: link.url,
         dateKey: link.dateKey
-      });
+      }));
       if (items.length >= 50) return items;
     }
   }
 
   if (!items.length) throw new Error("No Xinhua links found");
   return items;
+}
+
+export async function fetchToutiaoHot() {
+  const response = await fetch(TOUTIAO_HOT_URL, {
+    headers: {
+      accept: "application/json,text/plain,*/*",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+      referer: "https://www.toutiao.com/",
+      "user-agent": USER_AGENT
+    },
+    cf: { cacheTtl: 120, cacheEverything: false }
+  });
+  if (!response.ok) throw new Error(`Toutiao responded with HTTP ${response.status}`);
+  const data = await response.json();
+  const rows = Array.isArray(data?.data) ? data.data : [];
+  const now = new Date();
+  return rows
+    .filter((item) => item?.Title)
+    .slice(0, 50)
+    .map((item, index) => normalizeHotItem({
+      rank: index + 1,
+      source: "toutiao",
+      sourceName: "\u4eca\u65e5\u5934\u6761",
+      title: String(item.Title).trim(),
+      word: String(item.Title).trim(),
+      hot_value: item.HotValue ?? 0,
+      heat: formatHeat(item.HotValue),
+      tag: normalizeToutiaoLabel(item.Label),
+      label: normalizeToutiaoLabel(item.Label),
+      publish_time: now.toISOString(),
+      dateKey: getChinaDateKey(now),
+      url: item.Url || `https://www.toutiao.com/search/?keyword=${encodeURIComponent(item.Title)}`
+    }));
+}
+
+export async function fetchPeopleDailyHot() {
+  const xml = await fetchText(PEOPLE_RSS_URL);
+  return parseRssItems(xml, {
+    source: "people",
+    sourceName: "\u4eba\u6c11\u65e5\u62a5",
+    tag: "\u65f6\u653f",
+    limit: 50
+  });
+}
+
+export async function fetchOtherNewsHot() {
+  const xml = await fetchText(OTHER_NEWS_RSS_URL);
+  return parseRssItems(xml, {
+    source: "news",
+    sourceName: "\u5176\u4ed6\u65b0\u95fb",
+    tag: "\u4e2d\u65b0\u7f51",
+    limit: 50
+  });
+}
+
+export async function fetchZhihuHot() {
+  const response = await fetch(ZHIHU_BILLBOARD_URL, {
+    headers: {
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+      "user-agent": USER_AGENT
+    },
+    cf: { cacheTtl: 120, cacheEverything: false }
+  });
+  if (!response.ok) throw new Error(`Zhihu public billboard unavailable: HTTP ${response.status}`);
+  const html = await response.text();
+  const links = parseGenericArticleLinks(html, "https://www.zhihu.com/", /\/question\/\d+/i);
+  const now = new Date();
+  const items = links.slice(0, 30).map((link, index) => normalizeHotItem({
+    rank: index + 1,
+    source: "zhihu",
+    sourceName: "\u77e5\u4e4e",
+    title: link.title,
+    word: link.title,
+    hot_value: "\u77e5\u4e4e",
+    heat: "\u77e5\u4e4e",
+    tag: "\u70ed\u699c",
+    label: "\u70ed\u699c",
+    publish_time: now.toISOString(),
+    dateKey: getChinaDateKey(now),
+    url: link.url
+  }));
+  if (!items.length) throw new Error("No Zhihu public billboard links found");
+  return items;
+}
+
+export async function fetchDouyinHot() {
+  const response = await fetch(DOUYIN_PUBLIC_HOT_URL, {
+    headers: {
+      accept: "application/json,text/plain,*/*",
+      "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+      referer: "https://www.douyin.com/",
+      "user-agent": USER_AGENT
+    },
+    cf: { cacheTtl: 120, cacheEverything: false }
+  });
+  const text = await response.text();
+  if (!response.ok || !text.trim()) {
+    throw new Error("\u6296\u97f3\u516c\u5f00\u70ed\u699c\u6682\u4e0d\u53ef\u7528");
+  }
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("\u6296\u97f3\u516c\u5f00\u70ed\u699c\u54cd\u5e94\u4e0d\u662f\u7a33\u5b9a JSON");
+  }
+  const rows = data?.data?.word_list || data?.word_list || [];
+  if (!Array.isArray(rows) || !rows.length) throw new Error("\u6296\u97f3\u516c\u5f00\u70ed\u699c\u6682\u65e0\u6570\u636e");
+  const now = new Date();
+  return rows.slice(0, 50).map((item, index) => {
+    const title = String(item.word || item.sentence || item.title || "").trim();
+    return normalizeHotItem({
+      rank: index + 1,
+      source: "douyin",
+      sourceName: "\u6296\u97f3",
+      title,
+      word: title,
+      hot_value: item.hot_value ?? item.hot_score ?? 0,
+      heat: formatHeat(item.hot_value ?? item.hot_score),
+      tag: "\u70ed\u699c",
+      label: "\u70ed\u699c",
+      publish_time: now.toISOString(),
+      dateKey: getChinaDateKey(now),
+      url: `https://www.douyin.com/search/${encodeURIComponent(title)}`
+    });
+  }).filter((item) => item.title);
 }
 
 async function fetchText(url) {
@@ -329,12 +499,99 @@ function toAbsoluteUrl(href, baseUrl) {
   }
 }
 
+function parseRssItems(xml, { source, sourceName, tag, limit }) {
+  const items = [];
+  const itemPattern = /<item\b[\s\S]*?<\/item>/gi;
+  let match;
+  while ((match = itemPattern.exec(xml))) {
+    const block = match[0];
+    const title = cleanHtmlText(readXmlTag(block, "title"));
+    const url = decodeHtmlEntities(readXmlTag(block, "link")).trim();
+    const pubDate = readXmlTag(block, "pubDate") || readXmlTag(block, "date");
+    const published = parsePublishDate(pubDate);
+    if (!title || !url || !published || !getRecentChinaDateKeys().has(getChinaDateKey(published))) continue;
+    items.push(normalizeHotItem({
+      rank: items.length + 1,
+      source,
+      sourceName,
+      title,
+      word: title,
+      hot_value: sourceName,
+      heat: sourceName,
+      tag,
+      label: tag,
+      publish_time: published.toISOString(),
+      dateKey: getChinaDateKey(published),
+      url
+    }));
+    if (items.length >= limit) break;
+  }
+  if (!items.length) throw new Error(`${sourceName} RSS has no recent items`);
+  return items;
+}
+
+function parseGenericArticleLinks(html, baseUrl, urlPattern) {
+  const links = [];
+  const seen = new Set();
+  const anchorPattern = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorPattern.exec(html))) {
+    const url = toAbsoluteUrl(match[1], baseUrl);
+    const title = cleanHtmlText(match[2]);
+    const key = normalizeTopicKey(title);
+    if (!url || !urlPattern.test(new URL(url).pathname) || !key || seen.has(key) || title.length < 4) continue;
+    seen.add(key);
+    links.push({ title, url });
+  }
+  return links;
+}
+
+function readXmlTag(block, tagName) {
+  const match = block.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  if (!match) return "";
+  return match[1].replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "").trim();
+}
+
+function parsePublishDate(value) {
+  if (!value) return null;
+  const time = Date.parse(decodeHtmlEntities(value));
+  return Number.isFinite(time) ? new Date(time) : null;
+}
+
+function normalizeHotItem(item) {
+  const tag = item.tag ?? item.label ?? "";
+  const hotValue = item.hot_value ?? item.heat ?? "";
+  return {
+    ...item,
+    title: String(item.title || "").trim(),
+    word: String(item.word || item.title || "").trim(),
+    hot_value: hotValue,
+    publish_time: item.publish_time || dateKeyToIso(item.dateKey) || new Date().toISOString(),
+    tag,
+    heat: item.heat ?? String(hotValue || ""),
+    label: item.label ?? tag,
+    is_new: Boolean(item.is_new ?? item.isNew),
+    isNew: Boolean(item.isNew ?? item.is_new)
+  };
+}
+
+function normalizeToutiaoLabel(label) {
+  if (label === "hot") return "\u70ed";
+  if (label === "new") return "\u65b0";
+  return label ? String(label) : "\u70ed\u699c";
+}
+
+function dateKeyToIso(dateKey) {
+  if (!/^\d{8}$/.test(String(dateKey || ""))) return "";
+  return `${dateKey.slice(0, 4)}-${dateKey.slice(4, 6)}-${dateKey.slice(6, 8)}T00:00:00+08:00`;
+}
+
 function normalizeView(view) {
   return view === "all" ? "all" : "filtered";
 }
 
 function normalizeSourceFilter(source) {
-  return source === "weibo" || source === "xinhua" ? source : "all";
+  return SOURCE_IDS.includes(source) ? source : "all";
 }
 
 function groupCachedItemsBySource(items) {
@@ -370,12 +627,12 @@ function normalizeTopicKey(value) {
 function countSources(items) {
   return items.reduce(
     (counts, item) => {
-      if (item?.source === "weibo") counts.weibo += 1;
-      if (item?.source === "xinhua") counts.xinhua += 1;
+      const source = item?.source || "weibo";
+      counts[source] = (counts[source] || 0) + 1;
       counts.all += 1;
       return counts;
     },
-    { all: 0, weibo: 0, xinhua: 0 }
+    Object.fromEntries([["all", 0], ...SOURCE_IDS.map((source) => [source, 0])])
   );
 }
 
@@ -639,9 +896,9 @@ function json(payload, status = 200) {
 
 export function formatHeat(value) {
   const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return "暂无";
-  if (number >= 100000000) return `${trim(number / 100000000)}亿`;
-  if (number >= 10000) return `${trim(number / 10000)}万`;
+  if (!Number.isFinite(number) || number <= 0) return "\u6682\u65e0";
+  if (number >= 100000000) return `${trim(number / 100000000)}\u4ebf`;
+  if (number >= 10000) return `${trim(number / 10000)}\u4e07`;
   return String(Math.round(number));
 }
 
@@ -651,7 +908,7 @@ function trim(value) {
 
 function normalizeLabel(label) {
   const text = String(label || "").trim();
-  if (!text || text === "undefined" || text === "null") return "热";
+  if (!text || text === "undefined" || text === "null") return "\u70ed";
   return text.length > 4 ? text.slice(0, 4) : text;
 }
 
@@ -681,7 +938,7 @@ function getChinaDateKey(date) {
 }
 
 function readableError(error) {
-  return error instanceof Error ? error.message : "未知错误";
+  return error instanceof Error ? error.message : "\u672a\u77e5\u9519\u8bef";
 }
 
 function sleep(ms) {

@@ -142,7 +142,7 @@ test("filtered Xinhua public-opinion items must be from today or yesterday", () 
     { ...topic(CN.xinhuaFlood), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260707" },
     { ...topic(CN.courtFraud), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260706" },
     { ...topic(CN.policeCrash), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260705" },
-    { ...topic(CN.museumNoticeShort), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua }
+    { ...topic(CN.museumNoticeShort), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: undefined }
   ];
 
   assert.deepEqual(
@@ -220,7 +220,36 @@ test("filters the aggregated payload by source", () => {
   assert.equal(xinhua.items[0].source, "xinhua");
 
   const all = buildViewPayload(payload, "all", "all");
-  assert.deepEqual(all.sourceCounts, { all: 2, weibo: 1, xinhua: 1 });
+  assert.deepEqual(all.sourceCounts, { all: 2, weibo: 1, xinhua: 1, toutiao: 0, douyin: 0, people: 0, news: 0, zhihu: 0 });
+});
+
+test("supports newly added platform source filters and unavailable status", () => {
+  const payload = {
+    ok: true,
+    source: "live",
+    updatedAt: Date.now(),
+    updatedAtText: "07/07 10:00:00",
+    items: [
+      { ...topic(CN.guangxiFlood), source: "toutiao", sourceName: "\u4eca\u65e5\u5934\u6761" },
+      { ...topic(CN.courtFraud), source: "douyin", sourceName: "\u6296\u97f3" },
+      { ...topic(CN.xinhuaFloodLong), source: "news", sourceName: "\u5176\u4ed6\u65b0\u95fb" }
+    ],
+    sourceStatus: [
+      { id: "zhihu", name: "\u77e5\u4e4e", ok: false, fallback: false, count: 0, error: "HTTP 403" }
+    ],
+    error: null
+  };
+
+  const toutiao = buildViewPayload(payload, "all", "toutiao");
+  assert.equal(toutiao.sourceFilter, "toutiao");
+  assert.equal(toutiao.items.length, 1);
+  assert.equal(toutiao.items[0].source, "toutiao");
+  assert.equal(toutiao.sourceStatus[0].id, "zhihu");
+
+  const all = buildViewPayload(payload, "all", "all");
+  assert.equal(all.sourceCounts.toutiao, 1);
+  assert.equal(all.sourceCounts.douyin, 1);
+  assert.equal(all.sourceCounts.news, 1);
 });
 
 test("Tencent SCF adapter preserves object query parameters", async () => {
@@ -262,7 +291,7 @@ test("Tencent SCF adapter preserves object query parameters", async () => {
 });
 
 function topic(title) {
-  return { rank: 1, source: "weibo", sourceName: CN.weibo, title, word: title, heat: "1\u4e07", label: CN.hot, url: "#", isNew: false };
+  return { rank: 1, source: "weibo", sourceName: CN.weibo, title, word: title, hot_value: 10000, heat: "1\u4e07", tag: CN.hot, label: CN.hot, publish_time: new Date().toISOString(), dateKey: todayDateKey(), url: "#", isNew: false, is_new: false };
 }
 
 function todayDateKey() {

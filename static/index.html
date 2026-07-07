@@ -347,6 +347,7 @@
     .platform-renmin { --badge-color: #b91c1c; --badge-bg: #ffeaea; }
     .platform-toutiao { --badge-color: #be123c; --badge-bg: #fff0f4; }
     .platform-douyin { --badge-color: #0f766e; --badge-bg: #e6fffb; }
+    .platform-zhihu { --badge-color: #2563eb; --badge-bg: #eaf1ff; }
     .platform-news { --badge-color: #6d28d9; --badge-bg: #f2ecff; }
 
     .time, .heat {
@@ -440,11 +441,12 @@
         <a class="platform" data-source="all" href="/"><span class="platform-dot"></span>&#32508;&#21512;&#33286;&#24773;</a>
         <a class="platform platform-weibo" data-source="weibo" href="/?source=weibo"><span class="platform-dot"></span>&#24494;&#21338;</a>
         <a class="platform platform-xinhua" data-source="xinhua" href="/?source=xinhua"><span class="platform-dot"></span>&#26032;&#21326;&#32593;/&#26032;&#21326;&#31038;</a>
+        <a class="platform platform-zhihu" data-source="zhihu" href="/?source=zhihu"><span class="platform-dot"></span>&#30693;&#20046;</a>
+        <a class="platform platform-toutiao" data-source="toutiao" href="/?source=toutiao"><span class="platform-dot"></span>&#20170;&#26085;&#22836;&#26465;</a>
+        <a class="platform platform-douyin" data-source="douyin" href="/?source=douyin"><span class="platform-dot"></span>&#25238;&#38899;</a>
+        <a class="platform platform-renmin" data-source="people" href="/?source=people"><span class="platform-dot"></span>&#20154;&#27665;&#26085;&#25253;</a>
+        <a class="platform platform-news" data-source="news" href="/?source=news"><span class="platform-dot"></span>&#20854;&#20182;&#26032;&#38395;</a>
         <a class="platform" data-source="rawall" href="/?view=all&source=all"><span class="platform-dot"></span>&#20840;&#37327;</a>
-        <span class="platform platform-renmin disabled"><span class="platform-dot"></span>&#20154;&#27665;&#26085;&#25253;</span>
-        <span class="platform platform-toutiao disabled"><span class="platform-dot"></span>&#20170;&#26085;&#22836;&#26465;</span>
-        <span class="platform platform-douyin disabled"><span class="platform-dot"></span>&#25238;&#38899;</span>
-        <span class="platform platform-news disabled"><span class="platform-dot"></span>&#20854;&#20182;&#26032;&#38395;</span>
       </div>
     </section>
 
@@ -458,7 +460,7 @@
 
   <script>
     const API_BASE = "https://1451096226-kll61iiom1.ap-guangzhou.tencentscf.com";
-    const SUPPORTED_SOURCES = ["weibo", "xinhua"];
+    const SUPPORTED_SOURCES = ["weibo", "xinhua", "zhihu", "toutiao", "douyin", "people", "news"];
     const labels = {
       connecting: "\u8fde\u63a5\u4e2d",
       updating: "\u5237\u65b0\u4e2d",
@@ -469,6 +471,7 @@
       filtered: "\u8206\u60c5\u7b5b\u9009",
       all: "\u5168\u90e8\u70ed\u641c",
       noFiltered: "\u5f53\u524d\u6ca1\u6709\u5339\u914d\u7684\u8206\u60c5\u70ed\u70b9\uff0c\u53ef\u5207\u6362\u5230\u5168\u90e8\u70ed\u641c\u67e5\u770b\u3002",
+      unavailable: "\u8be5\u5e73\u53f0\u6682\u4e0d\u53ef\u7528\uff0c\u5df2\u4fdd\u7559\u5176\u4ed6\u5e73\u53f0\u70ed\u70b9\u3002",
       noData: "\u6682\u65e0\u70ed\u70b9\u6570\u636e\u3002",
       requestFailed: "\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u9875\u9762\u6570\u636e\u3002",
       newHot: "\u65b0",
@@ -485,7 +488,8 @@
       sourceFilter: SUPPORTED_SOURCES.includes(params.get("source")) ? params.get("source") : "all",
       totalItems: 0,
       visibleItems: 0,
-      sourceCounts: { all: 0, weibo: 0, xinhua: 0 },
+      sourceCounts: { all: 0, weibo: 0, xinhua: 0, zhihu: 0, toutiao: 0, douyin: 0, people: 0, news: 0 },
+      sourceStatus: [],
       loaded: false,
       loading: false
     };
@@ -567,6 +571,7 @@
         state.totalItems = Number(data.totalItems || state.items.length);
         state.visibleItems = Number(data.visibleItems || state.items.length);
         state.sourceCounts = data.sourceCounts || state.sourceCounts;
+        state.sourceStatus = Array.isArray(data.sourceStatus) ? data.sourceStatus : [];
         state.loaded = true;
 
         updated.textContent = data.updatedAtText ? labels.lastUpdated + " " + data.updatedAtText : labels.lastUpdated + " --";
@@ -612,7 +617,7 @@
         : state.items;
 
       if (!items.length) {
-        list.innerHTML = '<div class="state-card">' + (state.view === "filtered" ? labels.noFiltered : labels.noData) + '</div>';
+        list.innerHTML = '<div class="state-card">' + emptyMessage() + '</div>';
         return;
       }
 
@@ -668,7 +673,16 @@
       if (source.includes("renmin") || name.includes("\u4eba\u6c11\u65e5\u62a5")) return { name: "\u4eba\u6c11\u65e5\u62a5", className: "platform-renmin" };
       if (source.includes("toutiao") || name.includes("\u5934\u6761")) return { name: "\u4eca\u65e5\u5934\u6761", className: "platform-toutiao" };
       if (source.includes("douyin") || name.includes("\u6296\u97f3")) return { name: "\u6296\u97f3", className: "platform-douyin" };
+      if (source.includes("zhihu") || name.includes("\u77e5\u4e4e")) return { name: "\u77e5\u4e4e", className: "platform-zhihu" };
       return { name: name || "\u5176\u4ed6\u65b0\u95fb", className: "platform-news" };
+    }
+
+    function emptyMessage() {
+      const status = state.sourceStatus.find((item) => item.id === state.sourceFilter);
+      if (state.sourceFilter !== "all" && status && !status.ok && !status.fallback) {
+        return (status.name || "") + labels.unavailable;
+      }
+      return state.view === "filtered" ? labels.noFiltered : labels.noData;
     }
 
     function statusText(source) {
