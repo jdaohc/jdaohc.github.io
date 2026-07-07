@@ -1,3 +1,6 @@
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 const { main_handler } = require("./src/tencent-scf.cjs");
 
-exports.main_handler = main_handler;
+export { main_handler };
