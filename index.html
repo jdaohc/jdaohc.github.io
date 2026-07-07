@@ -118,6 +118,30 @@
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) load(false);
     });
+    filteredMode.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
+    allMode.addEventListener("click", (event) => switchTab(event, "all", "all"));
+    sourceAll.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
+    sourceWeibo.addEventListener("click", (event) => switchTab(event, "filtered", "weibo"));
+    sourceXinhua.addEventListener("click", (event) => switchTab(event, "filtered", "xinhua"));
+    sourceRawAll.addEventListener("click", (event) => switchTab(event, "all", "all"));
+    window.addEventListener("popstate", () => {
+      const next = new URLSearchParams(window.location.search);
+      state.view = next.get("view") === "all" ? "all" : "filtered";
+      state.sourceFilter = ["weibo", "xinhua"].includes(next.get("source")) ? next.get("source") : "all";
+      load(false);
+    });
+
+    function switchTab(event, view, sourceFilter) {
+      event.preventDefault();
+      state.view = view;
+      state.sourceFilter = sourceFilter;
+      const next = new URLSearchParams();
+      if (view === "all") next.set("view", "all");
+      if (sourceFilter !== "all") next.set("source", sourceFilter);
+      const url = next.toString() ? "/?" + next.toString() : "/";
+      window.history.pushState({}, "", url);
+      load(false);
+    }
 
     async function load(force) {
       status.innerHTML = '<span class="dot"></span><span>更新中</span>';
