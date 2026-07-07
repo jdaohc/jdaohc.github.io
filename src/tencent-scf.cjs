@@ -57,7 +57,7 @@ function waitUntilContext() {
 function toRequest(event) {
   const method = event.httpMethod || event.requestContext?.http?.method || "GET";
   const pathName = event.path || event.rawPath || "/";
-  const query = event.queryString || event.rawQueryString || toQueryString(event.queryStringParameters);
+  const query = normalizeQueryString(event);
   const protocol = event.headers?.["x-forwarded-proto"] || "https";
   const host = event.headers?.host || event.headers?.Host || "scf.local";
   const url = `${protocol}://${host}${pathName}${query ? `?${query}` : ""}`;
@@ -91,6 +91,13 @@ function toHeaderCase(header) {
     .split("-")
     .map((part) => part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part)
     .join("-");
+}
+
+function normalizeQueryString(event) {
+  if (typeof event.rawQueryString === "string" && event.rawQueryString) return event.rawQueryString;
+  if (typeof event.queryString === "string" && event.queryString) return event.queryString;
+  if (event.queryString && typeof event.queryString === "object") return toQueryString(event.queryString);
+  return toQueryString(event.queryStringParameters);
 }
 
 function toQueryString(params = {}) {

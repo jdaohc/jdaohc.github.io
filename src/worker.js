@@ -122,8 +122,8 @@ export function buildViewPayload(payload, view = "filtered", sourceFilter = "all
   };
 }
 
-export function filterPublicOpinionItems(items) {
-  return items.filter(isPublicOpinionItem);
+export function filterPublicOpinionItems(items, now = new Date()) {
+  return items.filter((item) => isPublicOpinionItem(item) && isRecentPublicOpinionItem(item, now));
 }
 
 export function isPublicOpinionItem(item) {
@@ -135,6 +135,12 @@ export function isPublicOpinionItem(item) {
   if (containsAny(text, FOREIGN_KEYWORDS) && !containsAny(text, DOMESTIC_CONTEXT_KEYWORDS)) return false;
 
   return containsAny(text, PUBLIC_OPINION_KEYWORDS);
+}
+
+export function isRecentPublicOpinionItem(item, now = new Date()) {
+  if ((item?.source || "weibo") !== "xinhua") return true;
+  if (!item?.dateKey) return false;
+  return getRecentChinaDateKeys(now).has(item.dateKey);
 }
 
 export async function fetchAllHotSources(cached) {
@@ -220,12 +226,13 @@ export async function fetchXinhuaHot() {
       items.push({
         rank: items.length + 1,
         source: "xinhua",
-        sourceName: "新华网/新华社",
+        sourceName: "\u65b0\u534e\u7f51/\u65b0\u534e\u793e",
         title: link.title,
         word: link.title,
-        heat: "新华网",
-        label: "新华",
-        url: link.url
+        heat: "\u65b0\u534e\u7f51",
+        label: "\u65b0\u534e",
+        url: link.url,
+        dateKey: link.dateKey
       });
       if (items.length >= 50) return items;
     }
@@ -258,7 +265,7 @@ export function parseXinhuaLinks(html, baseUrl = "https://www.news.cn/") {
     const url = toAbsoluteUrl(match[1], baseUrl);
     const title = cleanHtmlText(match[2]);
     if (!url || !isXinhuaArticleUrl(url) || !isUsefulXinhuaTitle(title)) continue;
-    links.push({ title, url });
+    links.push({ title, url, dateKey: extractXinhuaDateKey(url) });
   }
 
   return links;
@@ -281,9 +288,13 @@ function isXinhuaArticleUrl(url) {
   }
 }
 
+function extractXinhuaDateKey(url) {
+  return new URL(url).pathname.match(/\/(20\d{6})\//)?.[1] || "";
+}
+
 function isUsefulXinhuaTitle(title) {
   if (title.length < 6 || title.length > 80) return false;
-  if (/^(新华网|新华社|首页|更多|视频|图片|客户端|English)$/i.test(title)) return false;
+  if (/^(\u65b0\u534e\u7f51|\u65b0\u534e\u793e|\u9996\u9875|\u66f4\u591a|\u89c6\u9891|\u56fe\u7247|\u5ba2\u6237\u7aef|English)$/i.test(title)) return false;
   if (/[{}<>]/.test(title)) return false;
   return /[\u4e00-\u9fa5]/.test(title);
 }
@@ -373,210 +384,211 @@ function containsAny(text, keywords) {
 }
 
 const STRONG_PUBLIC_OPINION_KEYWORDS = [
-  "辟谣",
-  "通报",
-  "处罚",
-  "立案",
-  "判刑",
-  "死刑",
-  "救援",
-  "救灾",
-  "暴雨",
-  "洪水",
-  "台风",
-  "地震",
-  "火灾",
-  "事故",
-  "诈骗",
-  "造谣",
-  "维权",
-  "举报",
-  "调查",
-  "回应",
-  "警方",
-  "公安",
-  "法院",
-  "检察",
-  "监管",
-  "整治",
-  "专项行动",
-  "公共安全",
-  "食品安全",
-  "校园",
-  "医院",
-  "医保",
-  "高考",
-  "中考",
-  "义务教育",
-  "房租",
-  "欠薪",
-  "就业",
-  "消费者",
-  "侵权"
+  "\u8f9f\u8c23",
+  "\u901a\u62a5",
+  "\u5904\u7f5a",
+  "\u7acb\u6848",
+  "\u5224\u5211",
+  "\u6b7b\u4ea1",
+  "\u6551\u63f4",
+  "\u6551\u707e",
+  "\u66b4\u96e8",
+  "\u6d2a\u6c34",
+  "\u53f0\u98ce",
+  "\u5730\u9707",
+  "\u706b\u707e",
+  "\u4e8b\u6545",
+  "\u8bc8\u9a97",
+  "\u9020\u8c23",
+  "\u7ef4\u6743",
+  "\u4e3e\u62a5",
+  "\u8c03\u67e5",
+  "\u56de\u5e94",
+  "\u8b66\u65b9",
+  "\u516c\u5b89",
+  "\u6cd5\u9662",
+  "\u68c0\u5bdf",
+  "\u76d1\u7ba1",
+  "\u6574\u6cbb",
+  "\u4e13\u9879\u884c\u52a8",
+  "\u516c\u5171\u5b89\u5168",
+  "\u98df\u54c1\u5b89\u5168",
+  "\u6821\u56ed",
+  "\u533b\u9662",
+  "\u533b\u4fdd",
+  "\u9ad8\u8003",
+  "\u4e2d\u8003",
+  "\u4e49\u52a1\u6559\u80b2",
+  "\u623f\u79df",
+  "\u6b20\u85aa",
+  "\u5c31\u4e1a",
+  "\u6d88\u8d39\u8005",
+  "\u4fb5\u6743"
 ];
 
 const PUBLIC_OPINION_KEYWORDS = [
-  "中国",
-  "全国",
-  "国内",
-  "官方",
-  "政府",
-  "国务院",
-  "部门",
-  "政策",
-  "规划",
-  "法规",
-  "条例",
-  "民生",
-  "社会",
-  "市民",
-  "居民",
-  "群众",
-  "网友",
-  "老人",
-  "儿童",
-  "未成年人",
-  "学生",
-  "老师",
-  "学校",
-  "教育",
-  "医疗",
-  "医生",
-  "护士",
-  "患者",
-  "药",
-  "社保",
-  "养老",
-  "住房",
-  "房价",
-  "物业",
-  "交通",
-  "地铁",
-  "公交",
-  "铁路",
-  "航班",
-  "高速",
-  "天气",
-  "降雨",
-  "高温",
-  "低温",
-  "灾害",
-  "应急",
-  "防汛",
-  "抗旱",
-  "救灾物资",
-  "应急响应",
-  "安全",
-  "刑事",
-  "案件",
-  "嫌疑人",
-  "违法",
-  "犯罪",
-  "市场",
-  "消费",
-  "价格",
-  "收费",
-  "文物",
-  "博物馆",
-  "环保",
-  "污染",
-  "劳动",
-  "职场",
-  "企业",
-  "平台",
-  "网络平台",
-  "专项整治",
-  "ai应用"
+  "\u4e2d\u56fd",
+  "\u5168\u56fd",
+  "\u56fd\u5185",
+  "\u5b98\u65b9",
+  "\u653f\u5e9c",
+  "\u56fd\u52a1\u9662",
+  "\u90e8\u95e8",
+  "\u653f\u7b56",
+  "\u89c4\u5212",
+  "\u6cd5\u89c4",
+  "\u6761\u4f8b",
+  "\u6c11\u751f",
+  "\u793e\u4f1a",
+  "\u5e02\u6c11",
+  "\u5c45\u6c11",
+  "\u7fa4\u4f17",
+  "\u7f51\u53cb",
+  "\u8001\u4eba",
+  "\u513f\u7ae5",
+  "\u672a\u6210\u5e74\u4eba",
+  "\u5b66\u751f",
+  "\u8001\u5e08",
+  "\u5b66\u6821",
+  "\u6559\u80b2",
+  "\u533b\u7597",
+  "\u533b\u751f",
+  "\u62a4\u58eb",
+  "\u60a3\u8005",
+  "\u836f",
+  "\u793e\u4fdd",
+  "\u517b\u8001",
+  "\u4f4f\u623f",
+  "\u623f\u4ef7",
+  "\u7269\u4e1a",
+  "\u4ea4\u901a",
+  "\u5730\u94c1",
+  "\u516c\u4ea4",
+  "\u94c1\u8def",
+  "\u822a\u73ed",
+  "\u9ad8\u901f",
+  "\u5929\u6c14",
+  "\u964d\u96e8",
+  "\u9ad8\u6e29",
+  "\u4f4e\u6e29",
+  "\u707e\u5bb3",
+  "\u5e94\u6025",
+  "\u9632\u6c5b",
+  "\u6297\u65f1",
+  "\u6551\u707e\u7269\u8d44",
+  "\u5e94\u6025\u54cd\u5e94",
+  "\u5b89\u5168",
+  "\u5211\u4e8b",
+  "\u6848\u4ef6",
+  "\u5acc\u7591\u4eba",
+  "\u8fdd\u6cd5",
+  "\u72af\u7f6a",
+  "\u5e02\u573a",
+  "\u6d88\u8d39",
+  "\u4ef7\u683c",
+  "\u6536\u8d39",
+  "\u6587\u7269",
+  "\u535a\u7269\u9986",
+  "\u73af\u4fdd",
+  "\u6c61\u67d3",
+  "\u52b3\u52a8",
+  "\u804c\u573a",
+  "\u4f01\u4e1a",
+  "\u5e73\u53f0",
+  "\u7f51\u7edc\u5e73\u53f0",
+  "\u4e13\u9879\u6574\u6cbb",
+  "AI\u5e94\u7528"
 ];
 
 const DOMESTIC_CONTEXT_KEYWORDS = [
-  "中国",
-  "我国",
-  "国内",
-  "广西",
-  "北京",
-  "上海",
-  "广东",
-  "深圳",
-  "广州",
-  "浙江",
-  "江苏",
-  "山东",
-  "河南",
-  "河北",
-  "四川",
-  "重庆",
-  "湖南",
-  "湖北",
-  "福建",
-  "江西",
-  "安徽",
-  "山西",
-  "陕西",
-  "辽宁",
-  "吉林",
-  "黑龙江",
-  "云南",
-  "贵州",
-  "甘肃",
-  "青海",
-  "海南",
-  "内蒙古",
-  "新疆",
-  "西藏",
-  "宁夏",
-  "香港",
-  "澳门",
-  "台湾"
+  "\u4e2d\u56fd",
+  "\u6211\u56fd",
+  "\u56fd\u5185",
+  "\u5e7f\u897f",
+  "\u5317\u4eac",
+  "\u4e0a\u6d77",
+  "\u5e7f\u4e1c",
+  "\u6df1\u5733",
+  "\u5e7f\u5dde",
+  "\u6d59\u6c5f",
+  "\u6c5f\u82cf",
+  "\u5c71\u4e1c",
+  "\u6cb3\u5357",
+  "\u6cb3\u5317",
+  "\u56db\u5ddd",
+  "\u91cd\u5e86",
+  "\u6e56\u5357",
+  "\u6e56\u5317",
+  "\u798f\u5efa",
+  "\u6c5f\u897f",
+  "\u5b89\u5fbd",
+  "\u5c71\u897f",
+  "\u9655\u897f",
+  "\u8fbd\u5b81",
+  "\u5409\u6797",
+  "\u9ed1\u9f99\u6c5f",
+  "\u4e91\u5357",
+  "\u8d35\u5dde",
+  "\u7518\u8083",
+  "\u9752\u6d77",
+  "\u6d77\u5357",
+  "\u5185\u8499\u53e4",
+  "\u65b0\u7586",
+  "\u897f\u85cf",
+  "\u5b81\u590f",
+  "\u9999\u6e2f",
+  "\u6fb3\u95e8",
+  "\u53f0\u6e7e"
 ];
 
 const FOREIGN_KEYWORDS = [
-  "美国",
-  "日本",
-  "韩国",
-  "印度",
-  "英国",
-  "法国",
-  "德国",
-  "俄罗斯",
-  "乌克兰",
-  "以色列",
-  "伊朗",
-  "欧洲",
-  "海外",
-  "国外",
-  "外媒",
-  "fifa",
-  "欧足联",
-  "世界杯"
+  "\u7f8e\u56fd",
+  "\u65e5\u672c",
+  "\u97e9\u56fd",
+  "\u5370\u5ea6",
+  "\u82f1\u56fd",
+  "\u6cd5\u56fd",
+  "\u5fb7\u56fd",
+  "\u4fc4\u7f57\u65af",
+  "\u4e4c\u514b\u5170",
+  "\u4ee5\u8272\u5217",
+  "\u4f0a\u6717",
+  "\u6b27\u6d32",
+  "\u6d77\u5916",
+  "\u56fd\u5916",
+  "\u5916\u5a92",
+  "FIFA",
+  "\u6b27\u8db3\u8054",
+  "\u4e16\u754c\u676f"
 ];
 
 const EXCLUDE_KEYWORDS = [
-  "演唱会",
-  "新歌",
-  "代言",
-  "探班",
-  "比基尼",
-  "手机壳",
-  "应援",
-  "粉丝",
-  "饭圈",
-  "综艺",
-  "电影",
-  "电视剧",
-  "短剧",
-  "票房",
-  "刺棠",
+  "\u660e\u661f",
+  "\u6f14\u5531\u4f1a",
+  "\u65b0\u6b4c",
+  "\u4ee3\u8a00",
+  "\u63a2\u73ed",
+  "\u6bd4\u57fa\u5c3c",
+  "\u624b\u673a\u58f3",
+  "\u5e94\u63f4",
+  "\u7c89\u4e1d",
+  "\u996d\u5708",
+  "\u7efc\u827a",
+  "\u7535\u5f71",
+  "\u7535\u89c6\u5267",
+  "\u77ed\u5267",
+  "\u7968\u623f",
+  "\u523a\u7ee3",
   "part",
-  "神图",
-  "足球明星",
-  "红牌",
-  "战胜",
-  "比赛",
-  "电竞",
-  "游戏",
-  "dior",
-  "lv"
+  "\u795e\u56fe",
+  "\u8db3\u7403\u660e\u661f",
+  "\u7ea2\u724c",
+  "\u6218\u80dc",
+  "\u6bd4\u8d5b",
+  "\u7535\u7ade",
+  "\u6e38\u620f",
+  "Dior",
+  "LV"
 ];
 
 async function retry(fn, attempts, delayMs) {
@@ -653,6 +665,19 @@ function formatDate(timestamp) {
     second: "2-digit",
     hour12: false
   }).format(timestamp);
+}
+
+function getRecentChinaDateKeys(now = new Date()) {
+  const oneDay = 24 * 60 * 60 * 1000;
+  return new Set([
+    getChinaDateKey(now),
+    getChinaDateKey(new Date(now.getTime() - oneDay))
+  ]);
+}
+
+function getChinaDateKey(date) {
+  const chinaTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  return chinaTime.toISOString().slice(0, 10).replaceAll("-", "");
 }
 
 function readableError(error) {
