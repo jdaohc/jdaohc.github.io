@@ -5,7 +5,7 @@ inputs:
   name: weibo-hot-monitor
   region: ap-guangzhou
   runtime: Nodejs18.15
-  handler: src/tencent-scf.main_handler
+  handler: index.main_handler
   memorySize: 256
   timeout: 30
   src:
