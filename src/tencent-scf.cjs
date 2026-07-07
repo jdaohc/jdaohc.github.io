@@ -24,7 +24,7 @@ globalThis.caches = {
 };
 
 exports.main_handler = async function mainHandler(event = {}, context = {}) {
-  const worker = (await import("./worker.js")).default;
+  const worker = await loadWorker();
 
   if (event.Type === "Timer" || event.type === "timer") {
     const request = new Request("https://scf.local/api/hot?force=1&source=all&view=all");
@@ -36,6 +36,15 @@ exports.main_handler = async function mainHandler(event = {}, context = {}) {
   const response = await worker.fetch(request, {}, waitUntilContext());
   return toScfResponse(response);
 };
+
+async function loadWorker() {
+  try {
+    return (await import("./worker.mjs")).default;
+  } catch (error) {
+    if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error;
+    return (await import("./worker.js")).default;
+  }
+}
 
 function waitUntilContext() {
   return {
@@ -66,15 +75,22 @@ async function toScfResponse(response) {
   const body = await response.text();
   const headers = {};
   response.headers.forEach((value, key) => {
-    headers[key] = value;
+    headers[toHeaderCase(key)] = value;
   });
+  headers["Content-Disposition"] = "inline";
 
   return {
-    isBase64Encoded: false,
     statusCode: response.status,
     headers,
     body
   };
+}
+
+function toHeaderCase(header) {
+  return header
+    .split("-")
+    .map((part) => part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part)
+    .join("-");
 }
 
 function toQueryString(params = {}) {
