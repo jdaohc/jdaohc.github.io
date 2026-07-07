@@ -3,133 +3,536 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f7f8fb">
-  <title>微博实时热点</title>
+  <meta name="theme-color" content="#edf3ff">
+  <title>&#22810;&#24179;&#21488;&#28909;&#28857;&#38647;&#36798;</title>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f7f8fb;
-      --panel: #fff;
-      --text: #151822;
-      --muted: #697083;
-      --line: #e7eaf1;
+      --bg: #edf3ff;
+      --surface: rgba(255, 255, 255, 0.76);
+      --surface-strong: rgba(255, 255, 255, 0.92);
+      --text: #172033;
+      --muted: #697386;
+      --line: rgba(111, 128, 158, 0.22);
+      --shadow: 0 14px 34px rgba(30, 49, 86, 0.12);
+      --blue: #2563eb;
+      --cyan: #0891b2;
       --red: #e5484d;
       --amber: #f59f00;
-      --blue: #2563eb;
       --green: #0f9f6e;
+      --purple: #7c3aed;
+      --rose: #db2777;
+      --orange: #ea580c;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     }
+
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-size: 16px; }
-    .shell { width: min(100%, 760px); margin: 0 auto; padding: calc(env(safe-area-inset-top) + 18px) 14px calc(env(safe-area-inset-bottom) + 22px); }
-    header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 8px 2px 14px; }
-    h1 { margin: 0; font-size: clamp(26px, 8vw, 36px); line-height: 1.05; letter-spacing: 0; }
-    .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 116px; color: var(--muted); font-size: 12px; line-height: 1.2; text-align: right; }
-    .status { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; white-space: nowrap; }
-    .dot { width: 7px; height: 7px; border-radius: 99px; background: currentColor; }
-    .toolbar { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin: 4px 0 12px; }
-    .modebar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
-    .sourcebar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
-    .mode, .source { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 800; white-space: nowrap; }
-    .source { min-height: 36px; font-size: 13px; padding: 0 4px; }
-    .active { border-color: var(--text); background: var(--text); color: #fff; }
-    .search { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 13px; font-size: 15px; background: #fff; color: var(--text); outline: none; }
-    button { min-width: 46px; min-height: 44px; border: 0; border-radius: 8px; background: var(--text); color: #fff; font-size: 18px; font-weight: 800; }
-    .notice, .empty { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--muted); padding: 18px 14px; line-height: 1.6; }
-    .notice { display: none; margin-bottom: 10px; border-color: #f2d08a; color: #755b18; background: #fff8e7; }
-    .list { display: grid; gap: 8px; }
-    .item { display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; min-height: 76px; padding: 13px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: inherit; text-decoration: none; }
-    .rank { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #f0f2f6; color: #384052; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-    .item:nth-child(1) .rank { background: var(--red); color: #fff; }
-    .item:nth-child(2) .rank { background: var(--amber); color: #fff; }
-    .item:nth-child(3) .rank { background: var(--blue); color: #fff; }
-    .main { min-width: 0; display: grid; gap: 7px; }
-    .title { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 16px; font-weight: 750; line-height: 1.32; }
-    .title span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .heat { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-    .badge, .new { display: inline-flex; align-items: center; justify-content: center; height: 22px; border-radius: 6px; padding: 0 7px; font-size: 12px; font-weight: 800; white-space: nowrap; }
-    .badge { background: #fff1f1; color: var(--red); }
-    .new { background: var(--red); color: #fff; }
+    html { min-width: 320px; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--text);
+      font-size: 16px;
+      background:
+        linear-gradient(145deg, rgba(225, 239, 255, 0.98) 0%, rgba(247, 242, 255, 0.9) 46%, rgba(255, 247, 237, 0.92) 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(37, 99, 235, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+    }
+
+    .shell {
+      position: relative;
+      width: min(100%, 780px);
+      margin: 0 auto;
+      padding: calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 24px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 8px;
+      padding: 18px 16px 16px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(16, 27, 54, 0.96), rgba(28, 73, 142, 0.9) 48%, rgba(12, 118, 139, 0.88));
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%),
+        repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 12px);
+      mix-blend-mode: screen;
+      opacity: 0.8;
+    }
+
+    .hero-content { position: relative; z-index: 1; display: grid; gap: 12px; }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(255,255,255,0.76);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      color: #a7f3d0;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: currentColor;
+      box-shadow: 0 0 0 5px rgba(52, 211, 153, 0.16);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 9vw, 44px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 32rem;
+      color: rgba(255,255,255,0.82);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: rgba(255,255,255,0.88);
+      font-size: 12px;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .stat {
+      min-width: 0;
+      border: 1px solid rgba(255,255,255,0.72);
+      border-radius: 8px;
+      padding: 10px 8px;
+      background: var(--surface);
+      box-shadow: 0 10px 26px rgba(30, 49, 86, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .stat-value {
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .controls {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin: 0 -14px 12px;
+      padding: 10px 14px 12px;
+      background: linear-gradient(to bottom, rgba(237, 243, 255, 0.96), rgba(237, 243, 255, 0.72));
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,0.5);
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 46px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .search {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      border: 1px solid rgba(255,255,255,0.76);
+      border-radius: 8px;
+      padding: 0 13px;
+      outline: none;
+      color: var(--text);
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 8px 22px rgba(30, 49, 86, 0.08);
+      font-size: 15px;
+    }
+
+    .icon-button {
+      min-width: 46px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .modebar, .platformbar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+
+    .modebar::-webkit-scrollbar, .platformbar::-webkit-scrollbar { display: none; }
+
+    .mode, .platform {
+      flex: 0 0 auto;
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid rgba(255,255,255,0.78);
+      border-radius: 999px;
+      padding: 0 13px;
+      color: #536079;
+      background: rgba(255,255,255,0.72);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 850;
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(30, 49, 86, 0.07);
+    }
+
+    .mode.active, .platform.active {
+      color: #fff;
+      border-color: transparent;
+      background: #172033;
+    }
+
+    .platform.disabled { opacity: 0.48; }
+    .platform-dot { width: 8px; height: 8px; border-radius: 99px; background: currentColor; }
+
+    .notice, .state-card {
+      border: 1px solid rgba(255,255,255,0.78);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      color: var(--muted);
+      padding: 16px 14px;
+      line-height: 1.65;
+      box-shadow: 0 10px 26px rgba(30, 49, 86, 0.08);
+      backdrop-filter: blur(14px);
+    }
+
+    .notice {
+      display: none;
+      margin-bottom: 10px;
+      border-color: rgba(245, 159, 0, 0.35);
+      color: #775b13;
+      background: rgba(255, 249, 232, 0.88);
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      transition: opacity 0.18s ease;
+    }
+
+    .list.refreshing { opacity: 0.78; }
+
+    .hot-card {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 12px;
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.78);
+      border-radius: 8px;
+      color: inherit;
+      text-decoration: none;
+      background: rgba(255,255,255,0.82);
+      box-shadow: 0 12px 30px rgba(30, 49, 86, 0.1);
+      backdrop-filter: blur(18px);
+    }
+
+    .rank {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      color: #263247;
+      background: linear-gradient(145deg, #f5f7fb, #e8edf6);
+      font-size: 15px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hot-card:nth-child(1) .rank { color: #fff; background: linear-gradient(145deg, #ef4444, #f97316); }
+    .hot-card:nth-child(2) .rank { color: #fff; background: linear-gradient(145deg, #f59e0b, #eab308); }
+    .hot-card:nth-child(3) .rank { color: #fff; background: linear-gradient(145deg, #2563eb, #06b6d4); }
+
+    .card-main { min-width: 0; display: grid; gap: 9px; }
+    .card-top, .card-meta {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .platform-badge, .tag, .new {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 23px;
+      border-radius: 999px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .platform-badge { color: var(--badge-color); background: var(--badge-bg); }
+    .platform-weibo { --badge-color: #c2410c; --badge-bg: #fff0e7; }
+    .platform-xinhua { --badge-color: #1d4ed8; --badge-bg: #eaf1ff; }
+    .platform-renmin { --badge-color: #b91c1c; --badge-bg: #ffeaea; }
+    .platform-toutiao { --badge-color: #be123c; --badge-bg: #fff0f4; }
+    .platform-douyin { --badge-color: #0f766e; --badge-bg: #e6fffb; }
+    .platform-news { --badge-color: #6d28d9; --badge-bg: #f2ecff; }
+
+    .time, .heat {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-title {
+      margin: 0;
+      color: #111827;
+      font-size: 16px;
+      line-height: 1.42;
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+
+    .new { color: #fff; background: linear-gradient(135deg, #ef4444, #f97316); }
+    .tag { color: #5f6678; background: rgba(105, 115, 134, 0.1); }
+
+    .skeleton { display: grid; gap: 10px; }
+    .skeleton-row {
+      height: 88px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.52), rgba(255,255,255,0.86), rgba(255,255,255,0.52));
+      background-size: 200% 100%;
+      animation: shimmer 1.1s linear infinite;
+    }
+
+    @keyframes shimmer {
+      to { background-position: -200% 0; }
+    }
+
+    footer {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.74);
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.68);
+      box-shadow: 0 10px 24px rgba(30, 49, 86, 0.07);
+      font-size: 12px;
+      line-height: 1.65;
+      backdrop-filter: blur(12px);
+    }
+
     @media (min-width: 640px) {
       .shell { padding-left: 20px; padding-right: 20px; }
-      .item { grid-template-columns: 50px 1fr auto; padding: 15px 16px; }
-      .rank { width: 38px; height: 38px; }
-      .title { font-size: 17px; }
+      .hero { padding: 24px; }
+      .controls { margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+      .hot-card { grid-template-columns: 52px 1fr; padding: 16px; }
+      .rank { width: 44px; height: 44px; }
+      .card-title { font-size: 17px; }
     }
   </style>
 </head>
 <body>
   <main class="shell">
-    <header>
-      <h1>微博实时热点</h1>
-      <div class="meta">
-        <div class="status" id="status"><span class="dot"></span><span>更新中</span></div>
-        <div id="updated">--</div>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-content">
+        <div class="eyebrow">
+          <span>&#33286;&#24773;&#24773;&#25253;&#38754;&#26495;</span>
+          <span class="live" id="status"><span class="dot"></span><span>&#36830;&#25509;&#20013;</span></span>
+        </div>
+        <h1 id="pageTitle">&#22810;&#24179;&#21488;&#28909;&#28857;&#38647;&#36798;</h1>
+        <p class="subtitle">&#32858;&#21512;&#24494;&#21338;&#19982;&#26032;&#21326;&#32593;&#20844;&#24320;&#28909;&#28857;&#65292;&#20248;&#20808;&#21576;&#29616;&#36866;&#21512;&#33286;&#24773;&#20889;&#20316;&#30340;&#31038;&#20250;&#12289;&#27665;&#29983;&#12289;&#20844;&#20849;&#23433;&#20840;&#19982;&#25919;&#31574;&#27835;&#29702;&#20449;&#24687;&#12290;</p>
+        <div class="hero-meta">
+          <span class="hero-pill" id="updated">&#26368;&#21518;&#26356;&#26032; --</span>
+          <span class="hero-pill" id="viewLabel">&#33286;&#24773;&#31579;&#36873;</span>
+        </div>
       </div>
-    </header>
-    <section class="toolbar">
-      <input class="search" id="filter" type="search" placeholder="搜索榜单" autocomplete="off">
-      <button id="refresh" type="button" aria-label="刷新">↻</button>
     </section>
-    <section class="modebar">
-      <a class="mode" id="filteredMode" href="/">舆情筛选</a>
-      <a class="mode" id="allMode" href="/?view=all">全部热搜</a>
+
+    <section class="stats" aria-label="stats">
+      <div class="stat"><div class="stat-value" id="todayCount">--</div><div class="stat-label">&#20170;&#26085;&#28909;&#28857;</div></div>
+      <div class="stat"><div class="stat-value" id="yesterdayCount">--</div><div class="stat-label">&#26152;&#26085;&#28909;&#28857;</div></div>
+      <div class="stat"><div class="stat-value" id="newCount">--</div><div class="stat-label">&#26032;&#22686;&#28909;&#28857;</div></div>
+      <div class="stat"><div class="stat-value" id="platformCount">--</div><div class="stat-label">&#24179;&#21488;&#25968;&#37327;</div></div>
     </section>
-    <section class="sourcebar">
-      <a class="source" id="sourceAll" href="/">综合</a>
-      <a class="source" id="sourceWeibo" href="/?source=weibo">微博</a>
-      <a class="source" id="sourceXinhua" href="/?source=xinhua">新华网</a>
-      <a class="source" id="sourceRawAll" href="/?view=all&source=all">全量</a>
+
+    <section class="controls">
+      <div class="toolbar">
+        <input class="search" id="filter" type="search" placeholder="&#25628;&#32034;&#28909;&#28857;&#12289;&#24179;&#21488;&#25110;&#26631;&#31614;" autocomplete="off">
+        <button class="icon-button" id="refresh" type="button" aria-label="&#21047;&#26032;">&#8635;</button>
+      </div>
+      <div class="modebar" aria-label="view">
+        <a class="mode" id="filteredMode" href="/">&#33286;&#24773;&#31579;&#36873;</a>
+        <a class="mode" id="allMode" href="/?view=all">&#20840;&#37096;&#28909;&#25628;</a>
+      </div>
+      <div class="platformbar" aria-label="platforms">
+        <a class="platform" data-source="all" href="/"><span class="platform-dot"></span>&#32508;&#21512;&#33286;&#24773;</a>
+        <a class="platform platform-weibo" data-source="weibo" href="/?source=weibo"><span class="platform-dot"></span>&#24494;&#21338;</a>
+        <a class="platform platform-xinhua" data-source="xinhua" href="/?source=xinhua"><span class="platform-dot"></span>&#26032;&#21326;&#32593;/&#26032;&#21326;&#31038;</a>
+        <a class="platform" data-source="rawall" href="/?view=all&source=all"><span class="platform-dot"></span>&#20840;&#37327;</a>
+        <span class="platform platform-renmin disabled"><span class="platform-dot"></span>&#20154;&#27665;&#26085;&#25253;</span>
+        <span class="platform platform-toutiao disabled"><span class="platform-dot"></span>&#20170;&#26085;&#22836;&#26465;</span>
+        <span class="platform platform-douyin disabled"><span class="platform-dot"></span>&#25238;&#38899;</span>
+        <span class="platform platform-news disabled"><span class="platform-dot"></span>&#20854;&#20182;&#26032;&#38395;</span>
+      </div>
     </section>
+
     <section class="notice" id="notice"></section>
-    <section class="list" id="list"></section>
+    <section class="list" id="list" aria-live="polite"></section>
+
+    <footer>
+      <strong>&#25968;&#25454;&#35828;&#26126;</strong>&#65306;&#39029;&#38754;&#20165;&#23637;&#31034;&#24494;&#21338;&#28909;&#25628;&#19982;&#26032;&#21326;&#32593;&#20844;&#24320;&#20869;&#23481;&#30340;&#33258;&#21160;&#37319;&#38598;&#19982;&#35268;&#21017;&#31579;&#36873;&#32467;&#26524;&#65292;&#38750;&#23448;&#26041;&#27036;&#21333;&#25480;&#26435;&#29256;&#26412;&#12290;&#33286;&#24773;&#21028;&#26029;&#35831;&#32467;&#21512;&#21407;&#22987;&#38142;&#25509;&#12289;&#21457;&#24067;&#26102;&#38388;&#19982;&#22810;&#26041;&#20449;&#24687;&#20132;&#21449;&#26680;&#39564;&#12290;
+    </footer>
   </main>
+
   <script>
     const API_BASE = "https://1451096226-kll61iiom1.ap-guangzhou.tencentscf.com";
+    const SUPPORTED_SOURCES = ["weibo", "xinhua"];
+    const labels = {
+      connecting: "\u8fde\u63a5\u4e2d",
+      updating: "\u5237\u65b0\u4e2d",
+      live: "\u5b9e\u65f6",
+      cache: "\u7f13\u5b58",
+      failed: "\u8fde\u63a5\u5931\u8d25",
+      lastUpdated: "\u6700\u540e\u66f4\u65b0",
+      filtered: "\u8206\u60c5\u7b5b\u9009",
+      all: "\u5168\u90e8\u70ed\u641c",
+      noFiltered: "\u5f53\u524d\u6ca1\u6709\u5339\u914d\u7684\u8206\u60c5\u70ed\u70b9\uff0c\u53ef\u5207\u6362\u5230\u5168\u90e8\u70ed\u641c\u67e5\u770b\u3002",
+      noData: "\u6682\u65e0\u70ed\u70b9\u6570\u636e\u3002",
+      requestFailed: "\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u9875\u9762\u6570\u636e\u3002",
+      newHot: "\u65b0",
+      realtime: "\u5b9e\u65f6\u699c\u5355",
+      heat: "\u70ed\u5ea6",
+      hot: "\u70ed\u70b9"
+    };
+
     const params = new URLSearchParams(window.location.search);
     const state = {
       items: [],
       query: "",
       view: params.get("view") === "all" ? "all" : "filtered",
-      sourceFilter: ["weibo", "xinhua"].includes(params.get("source")) ? params.get("source") : "all",
+      sourceFilter: SUPPORTED_SOURCES.includes(params.get("source")) ? params.get("source") : "all",
       totalItems: 0,
       visibleItems: 0,
-      sourceCounts: { all: 0, weibo: 0, xinhua: 0 }
+      sourceCounts: { all: 0, weibo: 0, xinhua: 0 },
+      loaded: false,
+      loading: false
     };
 
     const list = document.querySelector("#list");
     const updated = document.querySelector("#updated");
+    const viewLabel = document.querySelector("#viewLabel");
     const status = document.querySelector("#status");
     const notice = document.querySelector("#notice");
     const filter = document.querySelector("#filter");
     const refresh = document.querySelector("#refresh");
     const filteredMode = document.querySelector("#filteredMode");
     const allMode = document.querySelector("#allMode");
-    const sourceAll = document.querySelector("#sourceAll");
-    const sourceWeibo = document.querySelector("#sourceWeibo");
-    const sourceXinhua = document.querySelector("#sourceXinhua");
-    const sourceRawAll = document.querySelector("#sourceRawAll");
+    const platforms = [...document.querySelectorAll(".platform[data-source]")];
+    const statEls = {
+      today: document.querySelector("#todayCount"),
+      yesterday: document.querySelector("#yesterdayCount"),
+      new: document.querySelector("#newCount"),
+      platforms: document.querySelector("#platformCount")
+    };
 
     filter.addEventListener("input", () => {
       state.query = filter.value.trim().toLowerCase();
       renderList();
     });
     refresh.addEventListener("click", () => load(true));
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) load(false);
-    });
     filteredMode.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
     allMode.addEventListener("click", (event) => switchTab(event, "all", "all"));
-    sourceAll.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
-    sourceWeibo.addEventListener("click", (event) => switchTab(event, "filtered", "weibo"));
-    sourceXinhua.addEventListener("click", (event) => switchTab(event, "filtered", "xinhua"));
-    sourceRawAll.addEventListener("click", (event) => switchTab(event, "all", "all"));
+    platforms.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const source = button.dataset.source;
+        if (source === "rawall") return switchTab(event, "all", "all");
+        return switchTab(event, "filtered", source);
+      });
+    });
     window.addEventListener("popstate", () => {
       const next = new URLSearchParams(window.location.search);
       state.view = next.get("view") === "all" ? "all" : "filtered";
-      state.sourceFilter = ["weibo", "xinhua"].includes(next.get("source")) ? next.get("source") : "all";
+      state.sourceFilter = SUPPORTED_SOURCES.includes(next.get("source")) ? next.get("source") : "all";
       load(false);
     });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) load(false);
+    });
+    window.setInterval(() => {
+      if (!document.hidden) load(false);
+    }, 120000);
 
     function switchTab(event, view, sourceFilter) {
       event.preventDefault();
@@ -138,84 +541,159 @@
       const next = new URLSearchParams();
       if (view === "all") next.set("view", "all");
       if (sourceFilter !== "all") next.set("source", sourceFilter);
-      const url = next.toString() ? "/?" + next.toString() : "/";
-      window.history.pushState({}, "", url);
+      window.history.pushState({}, "", next.toString() ? "/?" + next.toString() : "/");
       load(false);
     }
 
     async function load(force) {
-      status.innerHTML = '<span class="dot"></span><span>更新中</span>';
-      status.style.color = "var(--green)";
+      state.loading = true;
+      setStatus(labels.updating, "var(--green)");
+      notice.style.display = "none";
+      list.classList.toggle("refreshing", state.loaded);
+      if (!state.loaded) renderLoading();
+
       try {
         const apiParams = new URLSearchParams();
         apiParams.set("view", state.view);
         apiParams.set("source", state.sourceFilter);
         if (force) apiParams.set("force", "1");
         const response = await fetch(API_BASE + "/api/hot?" + apiParams.toString(), { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
         const data = await response.json();
+
         state.items = Array.isArray(data.items) ? data.items : [];
         state.view = data.view === "all" ? "all" : "filtered";
-        state.sourceFilter = ["weibo", "xinhua"].includes(data.sourceFilter) ? data.sourceFilter : "all";
+        state.sourceFilter = SUPPORTED_SOURCES.includes(data.sourceFilter) ? data.sourceFilter : "all";
         state.totalItems = Number(data.totalItems || state.items.length);
         state.visibleItems = Number(data.visibleItems || state.items.length);
         state.sourceCounts = data.sourceCounts || state.sourceCounts;
-        updated.textContent = data.updatedAtText ? "最后更新 " + data.updatedAtText : "--";
-        notice.style.display = data.error ? "block" : "none";
-        notice.textContent = data.error || "";
-        status.innerHTML = '<span class="dot"></span><span>' + statusText(data.source) + '</span>';
-        status.style.color = data.source === "stale-cache" ? "var(--amber)" : "var(--green)";
+        state.loaded = true;
+
+        updated.textContent = data.updatedAtText ? labels.lastUpdated + " " + data.updatedAtText : labels.lastUpdated + " --";
+        viewLabel.textContent = state.view === "all" ? labels.all + " " + state.totalItems : labels.filtered + " " + state.visibleItems + "/" + state.totalItems;
+        if (data.error) showNotice(data.error);
+        setStatus(statusText(data.source), data.source === "stale-cache" ? "var(--amber)" : "var(--green)");
         renderMode();
+        renderStats();
         renderList();
       } catch (error) {
-        status.innerHTML = '<span class="dot"></span><span>连接失败</span>';
-        status.style.color = "var(--red)";
-        notice.style.display = "block";
-        notice.textContent = "网络请求失败，请稍后重试。";
+        setStatus(labels.failed, "var(--red)");
+        showNotice(labels.requestFailed);
+        if (!state.loaded) renderError();
+      } finally {
+        state.loading = false;
+        list.classList.remove("refreshing");
       }
+    }
+
+    function renderStats() {
+      const today = getDateKey(0);
+      const yesterday = getDateKey(1);
+      const items = state.items;
+      const todayCount = items.filter((item) => !item.dateKey || item.dateKey === today).length;
+      const yesterdayCount = items.filter((item) => item.dateKey === yesterday).length;
+      const newCount = items.filter((item) => item.isNew).length;
+      const platformCount = Object.entries(state.sourceCounts)
+        .filter(([key, value]) => key !== "all" && Number(value) > 0)
+        .length || new Set(items.map((item) => item.source || "weibo")).size;
+
+      statEls.today.textContent = todayCount;
+      statEls.yesterday.textContent = yesterdayCount;
+      statEls.new.textContent = newCount;
+      statEls.platforms.textContent = platformCount;
     }
 
     function renderList() {
       const items = state.query
-        ? state.items.filter((item) => String(item.title || "").toLowerCase().includes(state.query))
+        ? state.items.filter((item) => {
+            const haystack = [item.title, item.sourceName, item.label, item.heat].map((value) => String(value || "").toLowerCase()).join(" ");
+            return haystack.includes(state.query);
+          })
         : state.items;
 
       if (!items.length) {
-        list.innerHTML = '<div class="empty">' + (state.view === "filtered" ? "当前没有匹配的舆情热点，可切换到全部热搜查看。" : "暂无热点数据。") + '</div>';
+        list.innerHTML = '<div class="state-card">' + (state.view === "filtered" ? labels.noFiltered : labels.noData) + '</div>';
         return;
       }
 
-      list.innerHTML = items.map((item) => `
-        <a class="item" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">
-          <div class="rank">${item.rank}</div>
-          <div class="main">
-            <div class="title">
-              <span>${escapeHtml(item.title)}</span>
-              ${item.isNew ? '<span class="new">新</span>' : ''}
+      list.innerHTML = items.map((item) => {
+        const platform = platformMeta(item);
+        const dateText = item.dateKey ? formatDateKey(item.dateKey) : labels.realtime;
+        return `
+          <a class="hot-card" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">
+            <div class="rank">${escapeHtml(String(item.rank || "-"))}</div>
+            <div class="card-main">
+              <div class="card-top">
+                <span class="platform-badge ${platform.className}">${platform.name}</span>
+                <span class="time">${dateText}</span>
+                ${item.isNew ? '<span class="new">' + labels.newHot + '</span>' : ''}
+              </div>
+              <h2 class="card-title">${escapeHtml(item.title || labels.hot)}</h2>
+              <div class="card-meta">
+                <span class="heat">${labels.heat} ${escapeHtml(item.heat || "--")}</span>
+                ${item.label ? '<span class="tag">' + escapeHtml(item.label) + '</span>' : ''}
+              </div>
             </div>
-            <div class="heat">${escapeHtml(item.sourceName || "热点")} · 热度 ${escapeHtml(item.heat || "暂无")}</div>
-          </div>
-          <div class="badge">${escapeHtml(item.label || "热")}</div>
-        </a>
-      `).join("");
+          </a>
+        `;
+      }).join("");
+    }
+
+    function renderLoading() {
+      list.innerHTML = '<div class="skeleton"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>';
+    }
+
+    function renderError() {
+      list.innerHTML = '<div class="state-card">' + labels.requestFailed + '</div>';
     }
 
     function renderMode() {
       filteredMode.classList.toggle("active", state.view === "filtered");
       allMode.classList.toggle("active", state.view === "all");
-      sourceAll.classList.toggle("active", state.sourceFilter === "all" && state.view === "filtered");
-      sourceWeibo.classList.toggle("active", state.sourceFilter === "weibo");
-      sourceXinhua.classList.toggle("active", state.sourceFilter === "xinhua");
-      sourceRawAll.classList.toggle("active", state.sourceFilter === "all" && state.view === "all");
-      const suffix = state.view === "filtered"
-        ? "舆情 " + state.visibleItems + "/" + state.totalItems
-        : "全部 " + state.totalItems;
-      if (!updated.textContent.includes(" · ")) updated.textContent += " · " + suffix;
+      platforms.forEach((button) => {
+        const source = button.dataset.source;
+        button.classList.toggle("active",
+          (source === "all" && state.view === "filtered" && state.sourceFilter === "all") ||
+          (source === "rawall" && state.view === "all" && state.sourceFilter === "all") ||
+          (SUPPORTED_SOURCES.includes(source) && source === state.sourceFilter)
+        );
+      });
+    }
+
+    function platformMeta(item) {
+      const source = String(item.source || "weibo").toLowerCase();
+      const name = String(item.sourceName || "");
+      if (source === "weibo" || name.includes("\u5fae\u535a")) return { name: "\u5fae\u535a", className: "platform-weibo" };
+      if (source === "xinhua" || name.includes("\u65b0\u534e")) return { name: "\u65b0\u534e\u7f51", className: "platform-xinhua" };
+      if (source.includes("renmin") || name.includes("\u4eba\u6c11\u65e5\u62a5")) return { name: "\u4eba\u6c11\u65e5\u62a5", className: "platform-renmin" };
+      if (source.includes("toutiao") || name.includes("\u5934\u6761")) return { name: "\u4eca\u65e5\u5934\u6761", className: "platform-toutiao" };
+      if (source.includes("douyin") || name.includes("\u6296\u97f3")) return { name: "\u6296\u97f3", className: "platform-douyin" };
+      return { name: name || "\u5176\u4ed6\u65b0\u95fb", className: "platform-news" };
     }
 
     function statusText(source) {
-      if (source === "live") return "实时";
-      if (source === "cache" || source === "stale-cache") return "缓存";
-      return "就绪";
+      if (source === "live") return labels.live;
+      if (source === "cache" || source === "stale-cache") return labels.cache;
+      return labels.live;
+    }
+
+    function setStatus(text, color) {
+      status.style.color = color;
+      status.innerHTML = '<span class="dot"></span><span>' + escapeHtml(text) + '</span>';
+    }
+
+    function showNotice(message) {
+      notice.style.display = "block";
+      notice.textContent = message;
+    }
+
+    function getDateKey(daysAgo) {
+      const date = new Date(Date.now() + 8 * 60 * 60 * 1000 - daysAgo * 24 * 60 * 60 * 1000);
+      return date.toISOString().slice(0, 10).replaceAll("-", "");
+    }
+
+    function formatDateKey(key) {
+      return /^\d{8}$/.test(String(key)) ? key.slice(0, 4) + "-" + key.slice(4, 6) + "-" + key.slice(6, 8) : labels.realtime;
     }
 
     function escapeHtml(value) {
@@ -229,11 +707,12 @@
     }
 
     function escapeAttr(value) {
-      return escapeHtml(value).replace(/`/g, "&#96;");
+      return escapeHtml(value || "#");
     }
 
+    renderMode();
+    renderStats();
     load(false);
-    setInterval(() => load(false), 60 * 1000);
   </script>
 </body>
 </html>
