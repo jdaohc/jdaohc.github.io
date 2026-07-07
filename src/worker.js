@@ -955,6 +955,7 @@ function renderPage() {
   </main>
 
   <script>
+    const API_BASE = window.HOT_API_BASE || "";
     const params = new URLSearchParams(window.location.search);
     const initialView = params.get("view") === "all" ? "all" : "filtered";
     const initialSource = ["weibo", "xinhua"].includes(params.get("source")) ? params.get("source") : "all";
@@ -990,7 +991,7 @@ function renderPage() {
         apiParams.set("view", state.view);
         apiParams.set("source", state.sourceFilter);
         if (force) apiParams.set("force", "1");
-        const res = await fetch("/api/hot?" + apiParams.toString(), { cache: "no-store" });
+        const res = await fetch(API_BASE + "/api/hot?" + apiParams.toString(), { cache: "no-store" });
         const data = await res.json();
         state.items = Array.isArray(data.items) ? data.items : [];
         state.view = data.view === "all" ? "all" : "filtered";
