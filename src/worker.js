@@ -1,3 +1,5 @@
+import { OPINION_RULES } from "./opinion-rules.js";
+
 const CACHE_KEY = "https://weibo-hot-monitor.local/cache/v1/hot";
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const CACHE_TTL_SECONDS = 60 * 60 * 24;
@@ -34,6 +36,12 @@ export default {
       const sourceFilter = normalizeSourceFilter(url.searchParams.get("source"));
       const payload = await getHotPayload({ force, ctx });
       return json(buildViewPayload(payload, view, sourceFilter), payload.ok ? 200 : 503);
+    }
+
+    if (url.pathname === "/api/opinion") {
+      const force = url.searchParams.get("force") === "1";
+      const payload = await getHotPayload({ force, ctx });
+      return json(buildOpinionPayload(payload, url.searchParams), payload.ok ? 200 : 503);
     }
 
     if (url.pathname === "/health") {
@@ -76,6 +84,7 @@ export async function getHotPayload({ force = false, ctx } = {}) {
         const isNew = cached ? !previousWords.has(`${item.source || "weibo"}:${item.word || item.title}`) : false;
         return { ...item, isNew, is_new: isNew };
       });
+    const opinionResult = updateOpinionPool(cached?.opinionPool ?? [], items, Date.now());
 
     const payload = {
       ok: true,
@@ -83,6 +92,8 @@ export async function getHotPayload({ force = false, ctx } = {}) {
       updatedAt: Date.now(),
       updatedAtText: formatDate(Date.now()),
       items,
+      opinionPool: opinionResult.pool,
+      filteredOut: opinionResult.filteredOut,
       sourceStatus: result.statuses,
       error: result.statuses.some((status) => status.ok)
         ? null
@@ -152,6 +163,97 @@ export function buildViewPayload(payload, view = "filtered", sourceFilter = "all
 
 export function filterPublicOpinionItems(items, now = new Date()) {
   return items.filter((item) => isPublicOpinionItem(item) && isRecentPublicOpinionItem(item, now));
+}
+
+export function buildOpinionPayload(payload, params = new URLSearchParams()) {
+  const platform = normalizeOpinionFilter(params.get("platform"), SOURCE_IDS);
+  const category = normalizeOpinionFilter(params.get("category"));
+  const day = normalizeOpinionFilter(params.get("day"), ["today", "yesterday"]);
+  const status = normalizeOpinionFilter(params.get("status"), ["current", "dropped"]);
+  const value = normalizeOpinionFilter(params.get("value"), ["high"]);
+  const multi = params.get("multi") === "1";
+  const debug = params.get("debug") === "1";
+  const sort = normalizeOpinionFilter(params.get("sort"), [
+    "score", "current_heat", "peak_heat", "first_seen", "last_seen", "duration"
+  ]) || "score";
+  const today = getChinaDateKey(new Date());
+  const yesterday = getChinaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  let items = Array.isArray(payload.opinionPool) ? payload.opinionPool : [];
+
+  items = items.filter((item) => item.date === today || item.date === yesterday);
+  if (platform) items = items.filter((item) => item.platforms?.includes(platform));
+  if (category) items = items.filter((item) => item.category === category);
+  if (day === "today") items = items.filter((item) => item.date === today);
+  if (day === "yesterday") items = items.filter((item) => item.date === yesterday);
+  if (status === "current") items = items.filter((item) => item.is_currently_hot);
+  if (status === "dropped") items = items.filter((item) => !item.is_currently_hot);
+  if (value === "high") items = items.filter((item) => item.score >= 80);
+  if (multi) items = items.filter((item) => item.platform_count > 1);
+
+  return {
+    ok: payload.ok,
+    source: payload.source,
+    updatedAt: payload.updatedAt,
+    updatedAtText: payload.updatedAtText,
+    filters: { platform, category, day, status, value, multi, sort },
+    categories: OPINION_RULES.categories.map((categoryConfig) => categoryConfig.name).concat(["\u5176\u4ed6"]),
+    totalItems: items.length,
+    items: sortOpinionItems(items, sort),
+    filteredOut: debug ? (payload.filteredOut || []) : undefined,
+    sourceStatus: payload.sourceStatus || [],
+    error: payload.error
+  };
+}
+
+export function updateOpinionPool(previousPool, currentItems, nowMs = Date.now()) {
+  const now = new Date(nowMs);
+  const today = getChinaDateKey(now);
+  const yesterday = getChinaDateKey(new Date(nowMs - 24 * 60 * 60 * 1000));
+  const retained = new Map();
+  const filteredOut = [];
+
+  for (const record of previousPool || []) {
+    if (record?.date !== today && record?.date !== yesterday) continue;
+    retained.set(record.event_key, {
+      ...record,
+      is_currently_hot: false,
+      status: "\u5df2\u4e0b\u699c",
+      current_rank: null,
+      hot_value: null,
+      hot_value_text: "--",
+      sources: markSourcesDropped(record.sources || {})
+    });
+  }
+
+  const currentEvaluations = [];
+  for (const item of currentItems || []) {
+    if (!isRecentPublicOpinionItem(item, now)) continue;
+    const evaluation = evaluateOpinionItem(item);
+    if (!evaluation.keep) {
+      filteredOut.push({
+        title: item.title,
+        source: item.source,
+        reason: evaluation.reason,
+        score: evaluation.score
+      });
+      continue;
+    }
+    currentEvaluations.push({ item, evaluation });
+  }
+
+  for (const { item, evaluation } of currentEvaluations) {
+    const eventKey = findOpinionEventKey(item, retained);
+    const existing = retained.get(eventKey);
+    const next = mergeOpinionRecord(existing, item, evaluation, eventKey, now);
+    retained.set(eventKey, next);
+  }
+
+  const pool = [...retained.values()]
+    .map((record) => finalizeOpinionRecord(record, now))
+    .filter((record) => record.score >= OPINION_RULES.minScore)
+    .sort((a, b) => b.score - a.score || new Date(b.last_seen) - new Date(a.last_seen));
+
+  return { pool, filteredOut };
 }
 
 export function isPublicOpinionItem(item) {
@@ -638,6 +740,186 @@ function countSources(items) {
 
 function containsAny(text, keywords) {
   return keywords.some((keyword) => text.includes(keyword));
+}
+
+function evaluateOpinionItem(item) {
+  const title = String(item?.title || item?.word || "");
+  const text = `${title} ${item?.tag || ""} ${item?.label || ""} ${item?.sourceName || ""}`.toLowerCase();
+  if (!title.trim()) return { keep: false, reason: "\u6570\u636e\u5f02\u5e38", score: 0, category: "\u5176\u4ed6" };
+  if (containsAny(text, OPINION_RULES.entertainmentKeywords)) {
+    return { keep: false, reason: "\u5a31\u4e50\u660e\u661f\u5185\u5bb9", score: 0, category: "\u5176\u4ed6" };
+  }
+  if (containsAny(text, OPINION_RULES.foreignKeywords) && !containsAny(text, OPINION_RULES.domesticImpactKeywords) && !containsAny(text, OPINION_RULES.opinionKeywords)) {
+    return { keep: false, reason: "\u7eaf\u56fd\u5916\u4e8b\u4ef6", score: 0, category: "\u5176\u4ed6" };
+  }
+
+  const category = classifyOpinion(text);
+  const keywordHit = containsAny(text, OPINION_RULES.opinionKeywords);
+  const score = scoreOpinionItem(item, category, 1, 0);
+  if (!keywordHit && score < OPINION_RULES.minScore) {
+    return { keep: false, reason: "\u4f4e\u8206\u60c5\u4ef7\u503c", score, category };
+  }
+  return { keep: score >= OPINION_RULES.minScore, reason: score >= OPINION_RULES.minScore ? "" : "\u4f4e\u8206\u60c5\u4ef7\u503c", score, category };
+}
+
+function classifyOpinion(text) {
+  for (const category of OPINION_RULES.categories) {
+    if (containsAny(text, category.keywords)) return category.name;
+  }
+  return "\u5176\u4ed6";
+}
+
+function scoreOpinionItem(item, category, platformCount = 1, durationHours = 0) {
+  const rules = OPINION_RULES.scoring;
+  let score = rules.base;
+  const rank = Number(item.current_rank || item.rank || 999);
+  const rankRule = rules.rank.find((rule) => rank <= rule.max);
+  if (rankRule) score += rankRule.points;
+  const heat = numericHeat(item.hot_value ?? item.heat);
+  const heatRule = rules.heat.find((rule) => heat >= rule.min);
+  if (heatRule) score += heatRule.points;
+  if (category && category !== "\u5176\u4ed6") score += rules.categoryBonus;
+  if (OPINION_RULES.highConcernCategories.includes(category)) score += rules.highConcernBonus;
+  if (platformCount > 1) score += rules.multiPlatformBonus + Math.min(8, (platformCount - 2) * 3);
+  score += Math.min(rules.maxDurationBonus, Math.floor(durationHours) * rules.durationHourBonus);
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function mergeOpinionRecord(existing, item, evaluation, eventKey, now) {
+  const source = item.source || "weibo";
+  const sourceKey = `${source}:${normalizeTopicKey(item.title || item.word)}`;
+  const hot = numericHeat(item.hot_value ?? item.heat);
+  const rank = Number(item.rank || item.current_rank || 999);
+  const firstSeen = existing?.first_seen || now.toISOString();
+  const sources = { ...(existing?.sources || {}) };
+  sources[source] = {
+    source,
+    sourceName: item.sourceName || source,
+    url: item.url || "#",
+    current_rank: rank,
+    current_hot_value: item.hot_value ?? item.heat ?? "",
+    last_seen: now.toISOString(),
+    is_currently_hot: true,
+    status: "\u5f53\u524d\u5728\u699c"
+  };
+  const platforms = Object.keys(sources);
+  const durationHours = (now - new Date(firstSeen)) / (60 * 60 * 1000);
+  const bestRank = Math.min(existing?.best_rank ?? rank, rank);
+  const peakHot = Math.max(numericHeat(existing?.peak_hot_value), hot);
+  const score = scoreOpinionItem(item, evaluation.category, platforms.length, durationHours);
+  return {
+    event_key: eventKey,
+    title: chooseOpinionTitle(existing?.title, item.title),
+    source,
+    url: item.url || existing?.url || "#",
+    category: existing?.category && existing.category !== "\u5176\u4ed6" ? existing.category : evaluation.category,
+    hot_value: item.hot_value ?? item.heat ?? "",
+    peak_hot_value: peakHot,
+    current_rank: rank,
+    best_rank: bestRank,
+    first_seen: firstSeen,
+    last_seen: now.toISOString(),
+    last_hot_seen: now.toISOString(),
+    is_currently_hot: true,
+    status: "\u5f53\u524d\u5728\u699c",
+    date: item.dateKey || getChinaDateKey(now),
+    score,
+    score_level: scoreLevel(score),
+    platform_count: platforms.length,
+    platforms,
+    source_keys: [...new Set([...(existing?.source_keys || []), sourceKey])],
+    multi_platform: platforms.length > 1,
+    sources
+  };
+}
+
+function finalizeOpinionRecord(record, now) {
+  const platforms = Object.keys(record.sources || {});
+  const durationHours = (new Date(record.last_seen || now) - new Date(record.first_seen || now)) / (60 * 60 * 1000);
+  const score = Math.max(record.score || 0, scoreOpinionItem(record, record.category, platforms.length, durationHours));
+  return {
+    ...record,
+    platform_count: platforms.length,
+    platforms,
+    multi_platform: platforms.length > 1,
+    score,
+    score_level: scoreLevel(score)
+  };
+}
+
+function findOpinionEventKey(item, records) {
+  const sourceKey = `${item.source || "weibo"}:${normalizeTopicKey(item.title || item.word)}`;
+  for (const [key, record] of records.entries()) {
+    if (record.source_keys?.includes(sourceKey)) return key;
+    if (similarOpinionKey(item.title, record.title)) return key;
+  }
+  const eventKey = normalizeEventKey(item.title || item.word);
+  const record = records.get(eventKey);
+  if (record) return eventKey;
+  return eventKey || sourceKey;
+}
+
+function normalizeEventKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{Script=Han}a-z0-9]/gu, "")
+    .replace(/(回应|通报|最新|官方|警方|网友|女子|男子|一|二|三|多名|多人)/gu, "")
+    .slice(0, 28);
+}
+
+function similarOpinionKey(a, b) {
+  const left = normalizeEventKey(a);
+  const right = normalizeEventKey(b);
+  if (!left || !right) return false;
+  if (left.includes(right) || right.includes(left)) return Math.min(left.length, right.length) >= 8;
+  const common = [...new Set([...left])].filter((char) => right.includes(char)).length;
+  return common / Math.max(left.length, right.length) >= 0.72;
+}
+
+function chooseOpinionTitle(current, next) {
+  if (!current) return next;
+  if (!next) return current;
+  return next.length > current.length && next.length <= 36 ? next : current;
+}
+
+function markSourcesDropped(sources) {
+  return Object.fromEntries(Object.entries(sources).map(([key, value]) => [key, {
+    ...value,
+    is_currently_hot: false,
+    status: "\u5df2\u4e0b\u699c"
+  }]));
+}
+
+function scoreLevel(score) {
+  return OPINION_RULES.scoreLevels.find((level) => score >= level.min)?.label || "\u4f4e\u8206\u60c5\u4ef7\u503c";
+}
+
+function numericHeat(value) {
+  if (typeof value === "number") return value;
+  const text = String(value || "");
+  const number = Number(text.replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(number)) return 0;
+  if (text.includes("\u4ebf")) return number * 100000000;
+  if (text.includes("\u4e07")) return number * 10000;
+  return number;
+}
+
+function sortOpinionItems(items, sort) {
+  const sorters = {
+    score: (a, b) => b.score - a.score,
+    current_heat: (a, b) => numericHeat(b.hot_value) - numericHeat(a.hot_value),
+    peak_heat: (a, b) => numericHeat(b.peak_hot_value) - numericHeat(a.peak_hot_value),
+    first_seen: (a, b) => new Date(b.first_seen) - new Date(a.first_seen),
+    last_seen: (a, b) => new Date(b.last_seen) - new Date(a.last_seen),
+    duration: (a, b) => (new Date(b.last_seen) - new Date(b.first_seen)) - (new Date(a.last_seen) - new Date(a.first_seen))
+  };
+  return [...items].sort(sorters[sort] || sorters.score);
+}
+
+function normalizeOpinionFilter(value, allowed) {
+  if (!value || value === "all") return "";
+  if (allowed && !allowed.includes(value)) return "";
+  return value;
 }
 
 const STRONG_PUBLIC_OPINION_KEYWORDS = [

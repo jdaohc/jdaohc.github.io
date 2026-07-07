@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import worker, {
+  buildOpinionPayload,
   buildViewPayload,
   fetchWeiboHot,
   filterPublicOpinionItems,
   formatHeat,
   getHotPayload,
-  parseXinhuaLinks
+  parseXinhuaLinks,
+  updateOpinionPool
 } from "../src/worker.js";
 
 const require = createRequire(import.meta.url);
@@ -252,6 +254,89 @@ test("supports newly added platform source filters and unavailable status", () =
   assert.equal(all.sourceCounts.news, 1);
 });
 
+test("opinion pool stores qualified topics with category, score and current status", () => {
+  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const { pool, filteredOut } = updateOpinionPool([], [
+    opinionTopic("\u67d0\u660e\u661f\u7ea2\u6bef\u9020\u578b\u5f15\u70ed\u8bae", { rank: 2, hot_value: 900000 }),
+    opinionTopic("\u5e02\u573a\u76d1\u7ba1\u90e8\u95e8\u901a\u62a5\u9910\u996e\u98df\u54c1\u5b89\u5168\u95ee\u9898", { rank: 3, hot_value: 1200000 })
+  ], now);
+
+  assert.equal(pool.length, 1);
+  assert.equal(pool[0].category, "\u98df\u54c1\u5b89\u5168");
+  assert.equal(pool[0].status, "\u5f53\u524d\u5728\u699c");
+  assert.equal(pool[0].is_currently_hot, true);
+  assert.equal(pool[0].current_rank, 3);
+  assert.ok(pool[0].score >= 40);
+  assert.equal(filteredOut[0].reason, "\u5a31\u4e50\u660e\u661f\u5185\u5bb9");
+});
+
+test("opinion pool keeps yesterday and today dropped topics with peak data", () => {
+  const first = Date.parse("2026-07-06T11:00:00+08:00");
+  const second = Date.parse("2026-07-07T09:00:00+08:00");
+  const firstPool = updateOpinionPool([], [
+    opinionTopic("\u8b66\u65b9\u901a\u62a5\u4ea4\u901a\u4e8b\u6545\u6551\u63f4\u60c5\u51b5", { rank: 6, hot_value: 500000, dateKey: "20260706", publish_time: "2026-07-06T03:00:00.000Z" })
+  ], first).pool;
+  const secondPool = updateOpinionPool(firstPool, [], second).pool;
+
+  assert.equal(secondPool.length, 1);
+  assert.equal(secondPool[0].status, "\u5df2\u4e0b\u699c");
+  assert.equal(secondPool[0].is_currently_hot, false);
+  assert.equal(secondPool[0].current_rank, null);
+  assert.equal(secondPool[0].best_rank, 6);
+  assert.equal(secondPool[0].peak_hot_value, 500000);
+  assert.match(secondPool[0].last_seen, /^2026-07-06/);
+});
+
+test("opinion pool filters pure foreign events but keeps domestic impact topics", () => {
+  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const { pool, filteredOut } = updateOpinionPool([], [
+    opinionTopic("\u7f8e\u56fd\u660e\u661f\u6f14\u5531\u4f1a\u73b0\u573a\u706b\u7206", { rank: 1, hot_value: 2000000 }),
+    opinionTopic("\u65e5\u672c\u98df\u54c1\u5b89\u5168\u95ee\u9898\u5f71\u54cd\u56fd\u5185\u8fdb\u53e3\u6d88\u8d39", { rank: 8, hot_value: 300000 })
+  ], now);
+
+  assert.deepEqual(pool.map((item) => item.title), ["\u65e5\u672c\u98df\u54c1\u5b89\u5168\u95ee\u9898\u5f71\u54cd\u56fd\u5185\u8fdb\u53e3\u6d88\u8d39"]);
+  assert.equal(filteredOut[0].reason, "\u5a31\u4e50\u660e\u661f\u5185\u5bb9");
+});
+
+test("opinion pool merges similar multi-platform social topics", () => {
+  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const { pool } = updateOpinionPool([], [
+    opinionTopic("\u535a\u7269\u9986\u901a\u62a5\u6e38\u5ba2\u635f\u574f\u6587\u7269", { source: "weibo", rank: 5, hot_value: 400000 }),
+    opinionTopic("\u535a\u7269\u9986\u901a\u62a5\u4e00\u6e38\u5ba2\u635f\u574f\u6587\u7269\u5904\u7f6e\u60c5\u51b5", { source: "xinhua", rank: 1, hot_value: 100000 })
+  ], now);
+
+  assert.equal(pool.length, 1);
+  assert.equal(pool[0].multi_platform, true);
+  assert.equal(pool[0].platform_count, 2);
+  assert.deepEqual(pool[0].platforms.sort(), ["weibo", "xinhua"]);
+  assert.equal(pool[0].best_rank, 1);
+  assert.equal(pool[0].peak_hot_value, 400000);
+});
+
+test("opinion api filters, sorts and exposes debug filtered records", () => {
+  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const result = updateOpinionPool([], [
+    opinionTopic("\u6cd5\u9662\u901a\u62a5\u6d88\u8d39\u7ef4\u6743\u6848\u4ef6\u8fdb\u5c55", { source: "weibo", rank: 4, hot_value: 700000 }),
+    opinionTopic("\u67d0\u5076\u50cf\u65b0\u6b4c\u4ee3\u8a00\u5b98\u5ba3", { source: "douyin", rank: 1, hot_value: 1000000 })
+  ], now);
+  const payload = {
+    ok: true,
+    source: "live",
+    updatedAt: now,
+    updatedAtText: "07/07 10:00:00",
+    opinionPool: result.pool,
+    filteredOut: result.filteredOut,
+    sourceStatus: []
+  };
+  const api = buildOpinionPayload(payload, new URLSearchParams("platform=weibo&category=\u6d88\u8d39&debug=1&sort=peak_heat"));
+
+  assert.equal(api.items.length, 1);
+  assert.equal(api.items[0].category, "\u6d88\u8d39");
+  assert.equal(api.filters.platform, "weibo");
+  assert.equal(api.filteredOut.length, 1);
+  assert.equal(api.filteredOut[0].reason, "\u5a31\u4e50\u660e\u661f\u5185\u5bb9");
+});
+
 test("Tencent SCF adapter preserves object query parameters", async () => {
   installCache(null);
   globalThis.fetch = async (url) => {
@@ -292,6 +377,36 @@ test("Tencent SCF adapter preserves object query parameters", async () => {
 
 function topic(title) {
   return { rank: 1, source: "weibo", sourceName: CN.weibo, title, word: title, hot_value: 10000, heat: "1\u4e07", tag: CN.hot, label: CN.hot, publish_time: new Date().toISOString(), dateKey: todayDateKey(), url: "#", isNew: false, is_new: false };
+}
+
+function opinionTopic(title, overrides = {}) {
+  const source = overrides.source || "weibo";
+  const sourceNames = {
+    weibo: CN.weibo,
+    xinhua: CN.xinhuaName,
+    toutiao: "\u4eca\u65e5\u5934\u6761",
+    douyin: "\u6296\u97f3",
+    people: "\u4eba\u6c11\u65e5\u62a5",
+    news: "\u5176\u4ed6\u65b0\u95fb",
+    zhihu: "\u77e5\u4e4e"
+  };
+  const hotValue = overrides.hot_value ?? 100000;
+  return {
+    rank: overrides.rank ?? 10,
+    source,
+    sourceName: sourceNames[source] || source,
+    title,
+    word: title,
+    hot_value: hotValue,
+    heat: formatHeat(hotValue),
+    tag: overrides.tag || CN.hot,
+    label: overrides.label || CN.hot,
+    publish_time: overrides.publish_time || "2026-07-07T02:00:00.000Z",
+    dateKey: overrides.dateKey || "20260707",
+    url: overrides.url || "#",
+    isNew: false,
+    is_new: false
+  };
 }
 
 function todayDateKey() {

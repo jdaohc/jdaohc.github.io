@@ -221,7 +221,7 @@
       font-weight: 900;
     }
 
-    .modebar, .platformbar {
+    .modebar, .platformbar, .filterbar {
       display: flex;
       gap: 8px;
       overflow-x: auto;
@@ -231,9 +231,9 @@
       padding-bottom: 2px;
     }
 
-    .modebar::-webkit-scrollbar, .platformbar::-webkit-scrollbar { display: none; }
+    .modebar::-webkit-scrollbar, .platformbar::-webkit-scrollbar, .filterbar::-webkit-scrollbar { display: none; }
 
-    .mode, .platform {
+    .mode, .platform, .filter-chip {
       flex: 0 0 auto;
       min-height: 36px;
       display: inline-flex;
@@ -252,10 +252,31 @@
       box-shadow: 0 8px 20px rgba(30, 49, 86, 0.07);
     }
 
-    .mode.active, .platform.active {
+    .mode.active, .platform.active, .filter-chip.active {
       color: #fff;
       border-color: transparent;
       background: #172033;
+    }
+
+    .opinion-filters {
+      display: none;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .opinion-filters.active { display: grid; }
+
+    .sort-select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,0.78);
+      border-radius: 8px;
+      padding: 0 12px;
+      color: #536079;
+      background: rgba(255,255,255,0.76);
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 8px 20px rgba(30, 49, 86, 0.07);
     }
 
     .platform.disabled { opacity: 0.48; }
@@ -319,6 +340,51 @@
     .hot-card:nth-child(1) .rank { color: #fff; background: linear-gradient(145deg, #ef4444, #f97316); }
     .hot-card:nth-child(2) .rank { color: #fff; background: linear-gradient(145deg, #f59e0b, #eab308); }
     .hot-card:nth-child(3) .rank { color: #fff; background: linear-gradient(145deg, #2563eb, #06b6d4); }
+
+    .opinion-card {
+      grid-template-columns: 58px 1fr;
+    }
+
+    .score {
+      display: grid;
+      place-items: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      color: #fff;
+      background: linear-gradient(145deg, #172033, #2563eb);
+      font-size: 15px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-current { color: #087f5b; background: #e6fff5; }
+    .status-dropped { color: #805a00; background: #fff6d8; }
+    .multi-tag { color: #5b21b6; background: #f1e8ff; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 8px;
+      color: #4b5567;
+      background: rgba(105, 115, 134, 0.08);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 2px;
+      color: #1f2937;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
 
     .card-main { min-width: 0; display: grid; gap: 9px; }
     .card-top, .card-meta {
@@ -434,6 +500,8 @@
         <button class="icon-button" id="refresh" type="button" aria-label="&#21047;&#26032;">&#8635;</button>
       </div>
       <div class="modebar" aria-label="view">
+        <a class="mode" id="hotMode" href="/">&#23454;&#26102;&#28909;&#28857;</a>
+        <a class="mode" id="opinionMode" href="/?panel=opinion">&#33286;&#24773;&#27744;</a>
         <a class="mode" id="filteredMode" href="/">&#33286;&#24773;&#31579;&#36873;</a>
         <a class="mode" id="allMode" href="/?view=all">&#20840;&#37096;&#28909;&#25628;</a>
       </div>
@@ -447,6 +515,29 @@
         <a class="platform platform-renmin" data-source="people" href="/?source=people"><span class="platform-dot"></span>&#20154;&#27665;&#26085;&#25253;</a>
         <a class="platform platform-news" data-source="news" href="/?source=news"><span class="platform-dot"></span>&#20854;&#20182;&#26032;&#38395;</a>
         <a class="platform" data-source="rawall" href="/?view=all&source=all"><span class="platform-dot"></span>&#20840;&#37327;</a>
+      </div>
+      <div class="opinion-filters" id="opinionFilters">
+        <div class="filterbar" aria-label="opinion filters">
+          <a class="filter-chip" data-filter="day" data-value="" href="/?panel=opinion">&#20170;&#26152;&#20840;&#37096;</a>
+          <a class="filter-chip" data-filter="day" data-value="today" href="/?panel=opinion&day=today">&#20170;&#22825;</a>
+          <a class="filter-chip" data-filter="day" data-value="yesterday" href="/?panel=opinion&day=yesterday">&#26152;&#22825;</a>
+          <a class="filter-chip" data-filter="status" data-value="current" href="/?panel=opinion&status=current">&#24403;&#21069;&#22312;&#27036;</a>
+          <a class="filter-chip" data-filter="status" data-value="dropped" href="/?panel=opinion&status=dropped">&#24050;&#19979;&#27036;</a>
+          <a class="filter-chip" data-filter="value" data-value="high" href="/?panel=opinion&value=high">&#39640;&#33286;&#24773;&#20215;&#20540;</a>
+          <a class="filter-chip" data-filter="multi" data-value="1" href="/?panel=opinion&multi=1">&#22810;&#24179;&#21488;&#28909;&#28857;</a>
+          <a class="filter-chip" data-filter="debug" data-value="1" href="/?panel=opinion&debug=1">&#36807;&#28388;&#35760;&#24405;</a>
+        </div>
+        <select class="sort-select" id="categoryFilter" aria-label="category filter">
+          <option value="">&#20840;&#37096;&#20998;&#31867;</option>
+        </select>
+        <select class="sort-select" id="sortFilter" aria-label="sort">
+          <option value="score">&#25353;&#33286;&#24773;&#20215;&#20540;</option>
+          <option value="current_heat">&#25353;&#24403;&#21069;&#28909;&#24230;</option>
+          <option value="peak_heat">&#25353;&#21382;&#21490;&#26368;&#39640;&#28909;&#24230;</option>
+          <option value="first_seen">&#25353;&#39318;&#27425;&#21457;&#29616;</option>
+          <option value="last_seen">&#25353;&#26368;&#36817;&#21457;&#29616;</option>
+          <option value="duration">&#25353;&#25345;&#32493;&#26102;&#38271;</option>
+        </select>
       </div>
     </section>
 
@@ -473,19 +564,42 @@
       noFiltered: "\u5f53\u524d\u6ca1\u6709\u5339\u914d\u7684\u8206\u60c5\u70ed\u70b9\uff0c\u53ef\u5207\u6362\u5230\u5168\u90e8\u70ed\u641c\u67e5\u770b\u3002",
       unavailable: "\u8be5\u5e73\u53f0\u6682\u4e0d\u53ef\u7528\uff0c\u5df2\u4fdd\u7559\u5176\u4ed6\u5e73\u53f0\u70ed\u70b9\u3002",
       noData: "\u6682\u65e0\u70ed\u70b9\u6570\u636e\u3002",
+      noOpinion: "\u6682\u65e0\u7b26\u5408\u6761\u4ef6\u7684\u8206\u60c5\u7d20\u6750\uff0c\u53ef\u653e\u5bbd\u7b5b\u9009\u6761\u4ef6\u6216\u7a0d\u540e\u5237\u65b0\u3002",
       requestFailed: "\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u9875\u9762\u6570\u636e\u3002",
       newHot: "\u65b0",
       realtime: "\u5b9e\u65f6\u699c\u5355",
       heat: "\u70ed\u5ea6",
-      hot: "\u70ed\u70b9"
+      hot: "\u70ed\u70b9",
+      opinionPool: "\u8206\u60c5\u7b5b\u9009\u6c60",
+      currentHot: "\u5f53\u524d\u5728\u699c",
+      droppedHot: "\u5df2\u4e0b\u699c",
+      rank: "\u6392\u540d",
+      bestRank: "\u6700\u9ad8\u6392\u540d",
+      peakHeat: "\u6700\u9ad8\u70ed\u5ea6",
+      firstSeen: "\u9996\u6b21\u53d1\u73b0",
+      lastSeen: "\u6700\u8fd1\u53d1\u73b0",
+      score: "\u8206\u60c5\u5206",
+      filteredRecords: "\u672a\u5165\u6c60\u8bb0\u5f55"
     };
 
     const params = new URLSearchParams(window.location.search);
     const state = {
       items: [],
+      filteredOut: [],
+      categories: [],
       query: "",
+      panel: params.get("panel") === "opinion" ? "opinion" : "hot",
       view: params.get("view") === "all" ? "all" : "filtered",
       sourceFilter: SUPPORTED_SOURCES.includes(params.get("source")) ? params.get("source") : "all",
+      opinionFilters: {
+        day: params.get("day") || "",
+        status: params.get("status") || "",
+        value: params.get("value") || "",
+        multi: params.get("multi") === "1" ? "1" : "",
+        debug: params.get("debug") === "1" ? "1" : "",
+        category: params.get("category") || "",
+        sort: params.get("sort") || "score"
+      },
       totalItems: 0,
       visibleItems: 0,
       sourceCounts: { all: 0, weibo: 0, xinhua: 0, zhihu: 0, toutiao: 0, douyin: 0, people: 0, news: 0 },
@@ -501,8 +615,14 @@
     const notice = document.querySelector("#notice");
     const filter = document.querySelector("#filter");
     const refresh = document.querySelector("#refresh");
+    const hotMode = document.querySelector("#hotMode");
+    const opinionMode = document.querySelector("#opinionMode");
     const filteredMode = document.querySelector("#filteredMode");
     const allMode = document.querySelector("#allMode");
+    const opinionFilters = document.querySelector("#opinionFilters");
+    const categoryFilter = document.querySelector("#categoryFilter");
+    const sortFilter = document.querySelector("#sortFilter");
+    const filterChips = [...document.querySelectorAll(".filter-chip[data-filter]")];
     const platforms = [...document.querySelectorAll(".platform[data-source]")];
     const statEls = {
       today: document.querySelector("#todayCount"),
@@ -516,19 +636,51 @@
       renderList();
     });
     refresh.addEventListener("click", () => load(true));
+    hotMode.addEventListener("click", (event) => switchTab(event, "hot", "filtered", "all"));
+    opinionMode.addEventListener("click", (event) => switchTab(event, "opinion", "filtered", "all"));
     filteredMode.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
     allMode.addEventListener("click", (event) => switchTab(event, "all", "all"));
     platforms.forEach((button) => {
       button.addEventListener("click", (event) => {
         const source = button.dataset.source;
-        if (source === "rawall") return switchTab(event, "all", "all");
-        return switchTab(event, "filtered", source);
+        if (source === "rawall") return switchTab(event, "hot", "all", "all");
+        return switchTab(event, state.panel, "filtered", source);
       });
+    });
+    filterChips.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const key = button.dataset.filter;
+        const value = button.dataset.value || "";
+        state.opinionFilters[key] = state.opinionFilters[key] === value ? "" : value;
+        updateUrl();
+        load(false);
+      });
+    });
+    categoryFilter.addEventListener("change", () => {
+      state.opinionFilters.category = categoryFilter.value;
+      updateUrl();
+      load(false);
+    });
+    sortFilter.addEventListener("change", () => {
+      state.opinionFilters.sort = sortFilter.value || "score";
+      updateUrl();
+      load(false);
     });
     window.addEventListener("popstate", () => {
       const next = new URLSearchParams(window.location.search);
+      state.panel = next.get("panel") === "opinion" ? "opinion" : "hot";
       state.view = next.get("view") === "all" ? "all" : "filtered";
       state.sourceFilter = SUPPORTED_SOURCES.includes(next.get("source")) ? next.get("source") : "all";
+      state.opinionFilters = {
+        day: next.get("day") || "",
+        status: next.get("status") || "",
+        value: next.get("value") || "",
+        multi: next.get("multi") === "1" ? "1" : "",
+        debug: next.get("debug") === "1" ? "1" : "",
+        category: next.get("category") || "",
+        sort: next.get("sort") || "score"
+      };
       load(false);
     });
     document.addEventListener("visibilitychange", () => {
@@ -538,15 +690,31 @@
       if (!document.hidden) load(false);
     }, 120000);
 
-    function switchTab(event, view, sourceFilter) {
+    function switchTab(event, panel, view, sourceFilter) {
       event.preventDefault();
+      if (panel !== "hot" && panel !== "opinion") {
+        sourceFilter = view;
+        view = panel;
+        panel = "hot";
+      }
+      state.panel = panel;
       state.view = view;
       state.sourceFilter = sourceFilter;
-      const next = new URLSearchParams();
-      if (view === "all") next.set("view", "all");
-      if (sourceFilter !== "all") next.set("source", sourceFilter);
-      window.history.pushState({}, "", next.toString() ? "/?" + next.toString() : "/");
+      updateUrl();
       load(false);
+    }
+
+    function updateUrl() {
+      const next = new URLSearchParams();
+      if (state.panel === "opinion") next.set("panel", "opinion");
+      if (state.panel === "hot" && state.view === "all") next.set("view", "all");
+      if (state.sourceFilter !== "all") next.set("source", state.sourceFilter);
+      if (state.panel === "opinion") {
+        Object.entries(state.opinionFilters).forEach(([key, value]) => {
+          if (value && !(key === "sort" && value === "score")) next.set(key, value);
+        });
+      }
+      window.history.pushState({}, "", next.toString() ? "/?" + next.toString() : "/");
     }
 
     async function load(force) {
@@ -558,16 +726,29 @@
 
       try {
         const apiParams = new URLSearchParams();
-        apiParams.set("view", state.view);
-        apiParams.set("source", state.sourceFilter);
+        const endpoint = state.panel === "opinion" ? "/api/opinion" : "/api/hot";
+        if (state.panel === "opinion") {
+          if (state.sourceFilter !== "all") apiParams.set("platform", state.sourceFilter);
+          Object.entries(state.opinionFilters).forEach(([key, value]) => {
+            if (value && !(key === "sort" && value === "score")) apiParams.set(key, value);
+          });
+          apiParams.set("sort", state.opinionFilters.sort || "score");
+        } else {
+          apiParams.set("view", state.view);
+          apiParams.set("source", state.sourceFilter);
+        }
         if (force) apiParams.set("force", "1");
-        const response = await fetch(API_BASE + "/api/hot?" + apiParams.toString(), { cache: "no-store" });
+        const response = await fetch(API_BASE + endpoint + "?" + apiParams.toString(), { cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
         const data = await response.json();
 
         state.items = Array.isArray(data.items) ? data.items : [];
-        state.view = data.view === "all" ? "all" : "filtered";
-        state.sourceFilter = SUPPORTED_SOURCES.includes(data.sourceFilter) ? data.sourceFilter : "all";
+        state.filteredOut = Array.isArray(data.filteredOut) ? data.filteredOut : [];
+        state.categories = Array.isArray(data.categories) ? data.categories : state.categories;
+        if (state.panel === "hot") {
+          state.view = data.view === "all" ? "all" : "filtered";
+          state.sourceFilter = SUPPORTED_SOURCES.includes(data.sourceFilter) ? data.sourceFilter : "all";
+        }
         state.totalItems = Number(data.totalItems || state.items.length);
         state.visibleItems = Number(data.visibleItems || state.items.length);
         state.sourceCounts = data.sourceCounts || state.sourceCounts;
@@ -575,10 +756,13 @@
         state.loaded = true;
 
         updated.textContent = data.updatedAtText ? labels.lastUpdated + " " + data.updatedAtText : labels.lastUpdated + " --";
-        viewLabel.textContent = state.view === "all" ? labels.all + " " + state.totalItems : labels.filtered + " " + state.visibleItems + "/" + state.totalItems;
+        viewLabel.textContent = state.panel === "opinion"
+          ? labels.opinionPool + " " + state.totalItems
+          : (state.view === "all" ? labels.all + " " + state.totalItems : labels.filtered + " " + state.visibleItems + "/" + state.totalItems);
         if (data.error) showNotice(data.error);
         setStatus(statusText(data.source), data.source === "stale-cache" ? "var(--amber)" : "var(--green)");
         renderMode();
+        renderCategoryOptions();
         renderStats();
         renderList();
       } catch (error) {
@@ -595,12 +779,14 @@
       const today = getDateKey(0);
       const yesterday = getDateKey(1);
       const items = state.items;
-      const todayCount = items.filter((item) => !item.dateKey || item.dateKey === today).length;
-      const yesterdayCount = items.filter((item) => item.dateKey === yesterday).length;
-      const newCount = items.filter((item) => item.isNew).length;
+      const todayCount = items.filter((item) => (item.date || item.dateKey) === today || (!item.date && !item.dateKey)).length;
+      const yesterdayCount = items.filter((item) => (item.date || item.dateKey) === yesterday).length;
+      const newCount = state.panel === "opinion"
+        ? items.filter((item) => item.status === labels.currentHot || item.is_currently_hot).length
+        : items.filter((item) => item.isNew).length;
       const platformCount = Object.entries(state.sourceCounts)
         .filter(([key, value]) => key !== "all" && Number(value) > 0)
-        .length || new Set(items.map((item) => item.source || "weibo")).size;
+        .length || new Set(items.flatMap((item) => item.platforms || [item.source || "weibo"])).size;
 
       statEls.today.textContent = todayCount;
       statEls.yesterday.textContent = yesterdayCount;
@@ -611,17 +797,28 @@
     function renderList() {
       const items = state.query
         ? state.items.filter((item) => {
-            const haystack = [item.title, item.sourceName, item.label, item.heat].map((value) => String(value || "").toLowerCase()).join(" ");
+            const haystack = [
+              item.title,
+              item.sourceName,
+              item.label,
+              item.heat,
+              item.category,
+              item.status,
+              ...(item.platforms || [])
+            ].map((value) => String(value || "").toLowerCase()).join(" ");
             return haystack.includes(state.query);
           })
         : state.items;
 
       if (!items.length) {
-        list.innerHTML = '<div class="state-card">' + emptyMessage() + '</div>';
+        const debugHtml = state.panel === "opinion" && state.filteredOut.length ? renderFilteredOut() : "";
+        list.innerHTML = '<div class="state-card">' + emptyMessage() + '</div>' + debugHtml;
         return;
       }
 
-      list.innerHTML = items.map((item) => {
+      const cards = state.panel === "opinion"
+        ? items.map(renderOpinionCard).join("")
+        : items.map((item) => {
         const platform = platformMeta(item);
         const dateText = item.dateKey ? formatDateKey(item.dateKey) : labels.realtime;
         return `
@@ -642,6 +839,47 @@
           </a>
         `;
       }).join("");
+      list.innerHTML = cards + (state.panel === "opinion" && state.filteredOut.length ? renderFilteredOut() : "");
+    }
+
+    function renderOpinionCard(item) {
+      const statusTextValue = item.is_currently_hot ? labels.currentHot : labels.droppedHot;
+      const statusClass = item.is_currently_hot ? "status-current" : "status-dropped";
+      const platformTags = (item.platforms || [item.source || "weibo"]).map((source) => {
+        const meta = platformMeta({ source });
+        return '<span class="platform-badge ' + meta.className + '">' + meta.name + '</span>';
+      }).join("");
+      const link = item.url || "#";
+      return `
+        <a class="hot-card opinion-card" href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer">
+          <div class="score">${escapeHtml(String(item.score ?? "--"))}</div>
+          <div class="card-main">
+            <div class="card-top">
+              ${platformTags}
+              <span class="tag">${escapeHtml(item.category || "\u5176\u4ed6")}</span>
+              <span class="tag ${statusClass}">${statusTextValue}</span>
+              ${item.multi_platform ? '<span class="tag multi-tag">\u591a\u5e73\u53f0 ' + escapeHtml(String(item.platform_count || 2)) + '</span>' : ''}
+            </div>
+            <h2 class="card-title">${escapeHtml(item.title || labels.hot)}</h2>
+            <div class="metric-grid">
+              <span class="metric">${labels.rank}<strong>${escapeHtml(String(item.current_rank || "--"))}</strong></span>
+              <span class="metric">${labels.bestRank}<strong>${escapeHtml(String(item.best_rank || "--"))}</strong></span>
+              <span class="metric">${labels.heat}<strong>${escapeHtml(item.hot_value_text || item.hot_value || "--")}</strong></span>
+              <span class="metric">${labels.peakHeat}<strong>${escapeHtml(item.peak_hot_value_text || item.peak_hot_value || "--")}</strong></span>
+              <span class="metric">${labels.firstSeen}<strong>${formatTime(item.first_seen)}</strong></span>
+              <span class="metric">${labels.lastSeen}<strong>${formatTime(item.last_seen)}</strong></span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    function renderFilteredOut() {
+      const rows = state.filteredOut.slice(0, 20).map((item) =>
+        '<div class="metric"><strong>' + escapeHtml(item.title || labels.hot) + '</strong>' +
+        escapeHtml(item.reason || "") + ' · ' + labels.score + ' ' + escapeHtml(String(item.score ?? "--")) + '</div>'
+      ).join("");
+      return '<div class="state-card"><strong>' + labels.filteredRecords + '</strong><div class="metric-grid" style="margin-top:10px">' + rows + '</div></div>';
     }
 
     function renderLoading() {
@@ -653,16 +891,38 @@
     }
 
     function renderMode() {
-      filteredMode.classList.toggle("active", state.view === "filtered");
-      allMode.classList.toggle("active", state.view === "all");
+      hotMode.classList.toggle("active", state.panel === "hot");
+      opinionMode.classList.toggle("active", state.panel === "opinion");
+      filteredMode.classList.toggle("active", state.panel === "hot" && state.view === "filtered");
+      allMode.classList.toggle("active", state.panel === "hot" && state.view === "all");
+      opinionFilters.classList.toggle("active", state.panel === "opinion");
+      categoryFilter.value = state.opinionFilters.category || "";
+      sortFilter.value = state.opinionFilters.sort || "score";
+      filter.placeholder = state.panel === "opinion"
+        ? "\u641c\u7d22\u8206\u60c5\u6807\u9898\u3001\u5206\u7c7b\u6216\u5e73\u53f0"
+        : "\u641c\u7d22\u70ed\u70b9\u3001\u5e73\u53f0\u6216\u6807\u7b7e";
       platforms.forEach((button) => {
         const source = button.dataset.source;
         button.classList.toggle("active",
-          (source === "all" && state.view === "filtered" && state.sourceFilter === "all") ||
-          (source === "rawall" && state.view === "all" && state.sourceFilter === "all") ||
+          (source === "all" && state.sourceFilter === "all" && (state.panel === "opinion" || state.view === "filtered")) ||
+          (source === "rawall" && state.panel === "hot" && state.view === "all" && state.sourceFilter === "all") ||
           (SUPPORTED_SOURCES.includes(source) && source === state.sourceFilter)
         );
       });
+      filterChips.forEach((button) => {
+        const key = button.dataset.filter;
+        const value = button.dataset.value || "";
+        button.classList.toggle("active", Boolean(state.opinionFilters[key]) && state.opinionFilters[key] === value);
+      });
+    }
+
+    function renderCategoryOptions() {
+      const current = state.opinionFilters.category || "";
+      const categories = state.categories.length ? state.categories : [];
+      const options = ['<option value="">\u5168\u90e8\u5206\u7c7b</option>']
+        .concat(categories.map((category) => '<option value="' + escapeAttr(category) + '">' + escapeHtml(category) + '</option>'));
+      categoryFilter.innerHTML = options.join("");
+      categoryFilter.value = current;
     }
 
     function platformMeta(item) {
@@ -678,6 +938,7 @@
     }
 
     function emptyMessage() {
+      if (state.panel === "opinion") return labels.noOpinion;
       const status = state.sourceStatus.find((item) => item.id === state.sourceFilter);
       if (state.sourceFilter !== "all" && status && !status.ok && !status.fallback) {
         return (status.name || "") + labels.unavailable;
@@ -708,6 +969,17 @@
 
     function formatDateKey(key) {
       return /^\d{8}$/.test(String(key)) ? key.slice(0, 4) + "-" + key.slice(4, 6) + "-" + key.slice(6, 8) : labels.realtime;
+    }
+
+    function formatTime(value) {
+      if (!value) return "--";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "--";
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hour = String(date.getHours()).padStart(2, "0");
+      const minute = String(date.getMinutes()).padStart(2, "0");
+      return month + "-" + day + " " + hour + ":" + minute;
     }
 
     function escapeHtml(value) {
