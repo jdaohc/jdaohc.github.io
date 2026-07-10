@@ -1,0 +1,11 @@
+{
+  "name": "weibo-hot-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A mobile-first multi-platform hot topic and public opinion radar on GitHub Pages.",
+  "type": "module",
+  "scripts": {
+    "collect": "node scripts/collect-hot-data.mjs",
+    "test": "node --test"
+  }
+}
