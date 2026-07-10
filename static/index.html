@@ -460,6 +460,261 @@
       backdrop-filter: blur(12px);
     }
 
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 10px;
+      color: #eaf2ff;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .section-title span {
+      color: rgba(226, 238, 255, 0.68);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .analysis-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .analysis-card {
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 12px;
+      padding: 15px;
+      color: #dbeafe;
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.72));
+      box-shadow: 0 16px 36px rgba(2, 8, 23, 0.22);
+      backdrop-filter: blur(18px);
+    }
+
+    .analysis-card h3 {
+      margin: 0 0 10px;
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .keyword-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .keyword-cloud span {
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.12);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 20;
+      width: min(100%, 780px);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 4px;
+      padding: 8px 10px calc(env(safe-area-inset-bottom) + 8px);
+      border-top: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(9, 16, 31, 0.9);
+      backdrop-filter: blur(22px);
+      box-shadow: 0 -14px 34px rgba(2, 8, 23, 0.28);
+    }
+
+    .nav-item {
+      min-width: 0;
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      border-radius: 12px;
+      color: rgba(219, 234, 254, 0.62);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .nav-item span:first-child {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .nav-item.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.92), rgba(6, 182, 212, 0.72));
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Intelligence cockpit theme overrides */
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.34), transparent 32%),
+        radial-gradient(circle at 88% 8%, rgba(6, 182, 212, 0.22), transparent 30%),
+        linear-gradient(180deg, #07111f 0%, #0f1b2f 48%, #edf3ff 48.1%, #eef4ff 100%);
+    }
+
+    body::before {
+      opacity: 0.55;
+      background-image:
+        linear-gradient(rgba(125, 211, 252, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(125, 211, 252, 0.08) 1px, transparent 1px);
+    }
+
+    .shell {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 92px);
+    }
+
+    .hero {
+      border-color: rgba(148, 163, 184, 0.28);
+      border-radius: 14px;
+      padding: 20px 16px 18px;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 64, 175, 0.82) 52%, rgba(8, 145, 178, 0.72));
+      box-shadow: 0 22px 54px rgba(2, 8, 23, 0.34);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      right: -34px;
+      top: -46px;
+      width: 150px;
+      height: 150px;
+      border: 1px solid rgba(125, 211, 252, 0.28);
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(125, 211, 252, 0.18), transparent 62%);
+    }
+
+    .eyebrow { color: rgba(219, 234, 254, 0.78); }
+    h1 { font-size: clamp(30px, 8.5vw, 42px); }
+    .subtitle { color: rgba(219, 234, 254, 0.84); }
+    .hero-pill {
+      border-color: rgba(125, 211, 252, 0.24);
+      background: rgba(15, 23, 42, 0.28);
+    }
+
+    .stats {
+      grid-template-columns: repeat(5, minmax(92px, 1fr));
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 2px 0 4px;
+    }
+
+    .stats::-webkit-scrollbar { display: none; }
+
+    .stat {
+      min-height: 82px;
+      border-color: rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      color: #eaf2ff;
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.58));
+      box-shadow: 0 14px 32px rgba(2, 8, 23, 0.24);
+    }
+
+    .stat::before {
+      display: block;
+      margin-bottom: 8px;
+      color: #7dd3fc;
+      font-size: 16px;
+      content: attr(data-icon);
+    }
+
+    .stat-value { color: #fff; font-size: 22px; }
+    .stat-label { color: rgba(219, 234, 254, 0.68); }
+
+    .controls {
+      top: 0;
+      border-bottom-color: rgba(148, 163, 184, 0.16);
+      background: linear-gradient(to bottom, rgba(8, 15, 29, 0.94), rgba(8, 15, 29, 0.76));
+    }
+
+    .search, .sort-select {
+      border-color: rgba(148, 163, 184, 0.22);
+      color: #e5eefc;
+      background: rgba(15, 23, 42, 0.72);
+    }
+
+    .search::placeholder { color: rgba(203, 213, 225, 0.58); }
+
+    .mode, .platform, .filter-chip {
+      border-color: rgba(148, 163, 184, 0.2);
+      color: rgba(219, 234, 254, 0.74);
+      background: rgba(15, 23, 42, 0.68);
+      box-shadow: none;
+    }
+
+    .mode.active, .platform.active, .filter-chip.active {
+      background: linear-gradient(135deg, #2563eb, #0891b2);
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.24);
+    }
+
+    .hot-card {
+      position: relative;
+      border-color: rgba(255,255,255,0.76);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .hot-card:active {
+      transform: scale(0.985);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+    }
+
+    .rank, .score {
+      border-radius: 12px;
+    }
+
+    .card-meta {
+      padding-top: 2px;
+    }
+
+    .heat-level-hot {
+      color: #b91c1c;
+      background: #fee2e2;
+    }
+
+    .heat-level-high {
+      color: #a16207;
+      background: #fef3c7;
+    }
+
+    .trend-up {
+      color: #047857;
+      background: #d1fae5;
+    }
+
+    .metric {
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(241, 245, 249, 0.82);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .new, .trend-up {
+        animation: pulseGlow 1.8s ease-in-out infinite;
+      }
+      @keyframes pulseGlow {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.12); }
+      }
+    }
+
     @media (min-width: 640px) {
       .shell { padding-left: 20px; padding-right: 20px; }
       .hero { padding: 24px; }
@@ -475,11 +730,11 @@
     <section class="hero" aria-labelledby="pageTitle">
       <div class="hero-content">
         <div class="eyebrow">
-          <span>&#33286;&#24773;&#24773;&#25253;&#38754;&#26495;</span>
+          <span>&#26234;&#33021;&#24773;&#25253;&#20013;&#24515;</span>
           <span class="live" id="status"><span class="dot"></span><span>&#36830;&#25509;&#20013;</span></span>
         </div>
-        <h1 id="pageTitle">&#22810;&#24179;&#21488;&#28909;&#28857;&#38647;&#36798;</h1>
-        <p class="subtitle">&#32858;&#21512;&#24494;&#21338;&#19982;&#26032;&#21326;&#32593;&#20844;&#24320;&#28909;&#28857;&#65292;&#20248;&#20808;&#21576;&#29616;&#36866;&#21512;&#33286;&#24773;&#20889;&#20316;&#30340;&#31038;&#20250;&#12289;&#27665;&#29983;&#12289;&#20844;&#20849;&#23433;&#20840;&#19982;&#25919;&#31574;&#27835;&#29702;&#20449;&#24687;&#12290;</p>
+        <h1 id="pageTitle">&#26234;&#33021;&#33286;&#24773;&#38647;&#36798;</h1>
+        <p class="subtitle">&#23454;&#26102;&#36861;&#36394;&#20840;&#32593;&#28909;&#28857;&#65292;&#36741;&#21161;&#33286;&#24773;&#20998;&#26512;&#19982;&#25253;&#21578;&#25776;&#20889;&#12290;</p>
         <div class="hero-meta">
           <span class="hero-pill" id="updated">&#26368;&#21518;&#26356;&#26032; --</span>
           <span class="hero-pill" id="viewLabel">&#33286;&#24773;&#31579;&#36873;</span>
@@ -488,10 +743,11 @@
     </section>
 
     <section class="stats" aria-label="stats">
-      <div class="stat"><div class="stat-value" id="todayCount">--</div><div class="stat-label">&#20170;&#26085;&#28909;&#28857;</div></div>
-      <div class="stat"><div class="stat-value" id="yesterdayCount">--</div><div class="stat-label">&#26152;&#26085;&#28909;&#28857;</div></div>
-      <div class="stat"><div class="stat-value" id="newCount">--</div><div class="stat-label">&#26032;&#22686;&#28909;&#28857;</div></div>
-      <div class="stat"><div class="stat-value" id="platformCount">--</div><div class="stat-label">&#24179;&#21488;&#25968;&#37327;</div></div>
+      <div class="stat" data-icon="&#128202;"><div class="stat-value" id="todayCount">--</div><div class="stat-label">&#20170;&#26085;&#28909;&#28857;</div></div>
+      <div class="stat" data-icon="&#128452;"><div class="stat-value" id="opinionCount">--</div><div class="stat-label">&#33286;&#24773;&#20107;&#20214;</div></div>
+      <div class="stat" data-icon="&#128293;"><div class="stat-value" id="currentCount">--</div><div class="stat-label">&#24403;&#21069;&#28909;&#25628;</div></div>
+      <div class="stat" data-icon="&#128246;"><div class="stat-value" id="multiCount">--</div><div class="stat-label">&#22810;&#24179;&#21488;</div></div>
+      <div class="stat" data-icon="&#11088;"><div class="stat-value" id="highValueCount">--</div><div class="stat-label">&#39640;&#20215;&#20540;</div></div>
     </section>
 
     <section class="controls">
@@ -549,6 +805,14 @@
     </footer>
   </main>
 
+  <nav class="bottom-nav" aria-label="bottom navigation">
+    <a class="nav-item" data-nav="home" href="/"><span>&#8962;</span><span>&#39318;&#39029;</span></a>
+    <a class="nav-item" data-nav="hot" href="/?panel=hot"><span>&#128293;</span><span>&#28909;&#28857;</span></a>
+    <a class="nav-item" data-nav="opinion" href="/?panel=opinion"><span>&#128452;</span><span>&#33286;&#24773;</span></a>
+    <a class="nav-item" data-nav="filter" href="/?panel=opinion&value=high"><span>&#128269;</span><span>&#31579;&#36873;</span></a>
+    <a class="nav-item" data-nav="analysis" href="/?panel=analysis"><span>&#128200;</span><span>&#20998;&#26512;</span></a>
+  </nav>
+
   <script>
     const DATA_URL = "data/hot-data.json";
     const SUPPORTED_SOURCES = ["weibo", "xinhua", "zhihu", "toutiao", "douyin", "people", "news"];
@@ -570,6 +834,10 @@
       realtime: "\u5b9e\u65f6\u699c\u5355",
       heat: "\u70ed\u5ea6",
       hot: "\u70ed\u70b9",
+      radar: "\u5b9e\u65f6\u70ed\u70b9\u96f7\u8fbe",
+      database: "\u8206\u60c5\u4e8b\u4ef6\u6570\u636e\u5e93",
+      topicLibrary: "\u8206\u60c5\u9009\u9898\u5e93",
+      analysisCenter: "AI \u5206\u6790\u4e2d\u5fc3",
       opinionPool: "\u8206\u60c5\u7b5b\u9009\u6c60",
       currentHot: "\u5f53\u524d\u5728\u699c",
       droppedHot: "\u5df2\u4e0b\u699c",
@@ -579,16 +847,25 @@
       firstSeen: "\u9996\u6b21\u53d1\u73b0",
       lastSeen: "\u6700\u8fd1\u53d1\u73b0",
       score: "\u8206\u60c5\u5206",
-      filteredRecords: "\u672a\u5165\u6c60\u8bb0\u5f55"
+      filteredRecords: "\u672a\u5165\u6c60\u8bb0\u5f55",
+      hotLevelBoom: "\u7206\u70ed",
+      hotLevelHigh: "\u9ad8\u70ed",
+      hotLevelNormal: "\u666e\u901a",
+      trendUp: "\u5feb\u901f\u4e0a\u6da8"
     };
 
     const params = new URLSearchParams(window.location.search);
+    const initialPanel = ["hot", "opinion", "analysis"].includes(params.get("panel"))
+      ? params.get("panel")
+      : (params.get("view") || params.get("source") ? "hot" : "home");
     const state = {
       items: [],
+      allItems: [],
+      opinionPool: [],
       filteredOut: [],
       categories: [],
       query: "",
-      panel: params.get("panel") === "opinion" ? "opinion" : "hot",
+      panel: initialPanel,
       view: params.get("view") === "all" ? "all" : "filtered",
       sourceFilter: SUPPORTED_SOURCES.includes(params.get("source")) ? params.get("source") : "all",
       opinionFilters: {
@@ -626,16 +903,32 @@
     const platforms = [...document.querySelectorAll(".platform[data-source]")];
     const statEls = {
       today: document.querySelector("#todayCount"),
-      yesterday: document.querySelector("#yesterdayCount"),
-      new: document.querySelector("#newCount"),
-      platforms: document.querySelector("#platformCount")
+      opinion: document.querySelector("#opinionCount"),
+      current: document.querySelector("#currentCount"),
+      multi: document.querySelector("#multiCount"),
+      highValue: document.querySelector("#highValueCount")
     };
+    const navItems = [...document.querySelectorAll(".nav-item[data-nav]")];
 
     filter.addEventListener("input", () => {
       state.query = filter.value.trim().toLowerCase();
       renderList();
     });
     refresh.addEventListener("click", () => load(true));
+    navItems.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const nav = button.dataset.nav;
+        if (nav === "home") return switchTab(event, "home", "filtered", "all");
+        if (nav === "hot") return switchTab(event, "hot", "filtered", "all");
+        if (nav === "opinion") return switchTab(event, "opinion", "filtered", "all");
+        if (nav === "filter") {
+          state.opinionFilters.value = "high";
+          return switchTab(event, "opinion", "filtered", "all");
+        }
+        return switchTab(event, "analysis", "filtered", "all");
+      });
+    });
     hotMode.addEventListener("click", (event) => switchTab(event, "hot", "filtered", "all"));
     opinionMode.addEventListener("click", (event) => switchTab(event, "opinion", "filtered", "all"));
     filteredMode.addEventListener("click", (event) => switchTab(event, "filtered", "all"));
@@ -669,7 +962,9 @@
     });
     window.addEventListener("popstate", () => {
       const next = new URLSearchParams(window.location.search);
-      state.panel = next.get("panel") === "opinion" ? "opinion" : "hot";
+      state.panel = ["hot", "opinion", "analysis"].includes(next.get("panel"))
+        ? next.get("panel")
+        : (next.get("view") || next.get("source") ? "hot" : "home");
       state.view = next.get("view") === "all" ? "all" : "filtered";
       state.sourceFilter = SUPPORTED_SOURCES.includes(next.get("source")) ? next.get("source") : "all";
       state.opinionFilters = {
@@ -692,7 +987,7 @@
 
     function switchTab(event, panel, view, sourceFilter) {
       event.preventDefault();
-      if (panel !== "hot" && panel !== "opinion") {
+      if (!["home", "hot", "opinion", "analysis"].includes(panel)) {
         sourceFilter = view;
         view = panel;
         panel = "hot";
@@ -706,7 +1001,9 @@
 
     function updateUrl() {
       const next = new URLSearchParams();
+      if (state.panel === "hot") next.set("panel", "hot");
       if (state.panel === "opinion") next.set("panel", "opinion");
+      if (state.panel === "analysis") next.set("panel", "analysis");
       if (state.panel === "hot" && state.view === "all") next.set("view", "all");
       if (state.sourceFilter !== "all") next.set("source", state.sourceFilter);
       if (state.panel === "opinion") {
@@ -730,10 +1027,12 @@
         const payload = await response.json();
         const data = state.panel === "opinion" ? buildOpinionData(payload) : buildHotData(payload);
 
+        state.allItems = Array.isArray(payload.items) ? payload.items : [];
+        state.opinionPool = Array.isArray(payload.opinionPool) ? payload.opinionPool : [];
         state.items = Array.isArray(data.items) ? data.items : [];
         state.filteredOut = Array.isArray(data.filteredOut) ? data.filteredOut : [];
         state.categories = Array.isArray(data.categories) ? data.categories : state.categories;
-        if (state.panel === "hot") {
+        if (state.panel === "hot" || state.panel === "home" || state.panel === "analysis") {
           state.view = data.view === "all" ? "all" : "filtered";
           state.sourceFilter = SUPPORTED_SOURCES.includes(data.sourceFilter) ? data.sourceFilter : "all";
         }
@@ -744,9 +1043,7 @@
         state.loaded = true;
 
         updated.textContent = data.updatedAtText ? labels.lastUpdated + " " + data.updatedAtText : labels.lastUpdated + " --";
-        viewLabel.textContent = state.panel === "opinion"
-          ? labels.opinionPool + " " + state.totalItems
-          : (state.view === "all" ? labels.all + " " + state.totalItems : labels.filtered + " " + state.visibleItems + "/" + state.totalItems);
+        viewLabel.textContent = viewLabelText();
         if (data.error) showNotice(data.error);
         setStatus(statusText(data.source), data.source === "stale-cache" ? "var(--amber)" : "var(--green)");
         renderMode();
@@ -837,26 +1134,38 @@
       return list.sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || new Date(b.last_seen || 0) - new Date(a.last_seen || 0));
     }
 
+    function viewLabelText() {
+      if (state.panel === "analysis") return labels.analysisCenter;
+      if (state.panel === "opinion") return labels.opinionPool + " " + state.totalItems;
+      if (state.panel === "home") return "\u9996\u9875\u603b\u89c8 " + state.visibleItems + "/" + state.totalItems;
+      return state.view === "all" ? labels.all + " " + state.totalItems : labels.filtered + " " + state.visibleItems + "/" + state.totalItems;
+    }
+
     function renderStats() {
       const today = getDateKey(0);
-      const yesterday = getDateKey(1);
-      const items = state.items;
-      const todayCount = items.filter((item) => (item.date || item.dateKey) === today || (!item.date && !item.dateKey)).length;
-      const yesterdayCount = items.filter((item) => (item.date || item.dateKey) === yesterday).length;
-      const newCount = state.panel === "opinion"
-        ? items.filter((item) => item.status === labels.currentHot || item.is_currently_hot).length
-        : items.filter((item) => item.isNew).length;
+      const hotItems = state.allItems.length ? state.allItems : state.items;
+      const opinionItems = state.opinionPool;
+      const todayCount = hotItems.filter((item) => (item.date || item.dateKey) === today || (!item.date && !item.dateKey)).length;
+      const opinionCount = opinionItems.length;
+      const currentCount = opinionItems.filter((item) => item.is_currently_hot).length || hotItems.length;
+      const multiCount = opinionItems.filter((item) => Number(item.platform_count || 0) > 1).length;
+      const highValueCount = opinionItems.filter((item) => Number(item.score || 0) >= 80).length;
       const platformCount = Object.entries(state.sourceCounts)
         .filter(([key, value]) => key !== "all" && Number(value) > 0)
-        .length || new Set(items.flatMap((item) => item.platforms || [item.source || "weibo"])).size;
+        .length || new Set(hotItems.flatMap((item) => item.platforms || [item.source || "weibo"])).size;
 
       statEls.today.textContent = todayCount;
-      statEls.yesterday.textContent = yesterdayCount;
-      statEls.new.textContent = newCount;
-      statEls.platforms.textContent = platformCount;
+      statEls.opinion.textContent = opinionCount;
+      statEls.current.textContent = currentCount;
+      statEls.multi.textContent = multiCount;
+      statEls.highValue.textContent = highValueCount;
     }
 
     function renderList() {
+      if (state.panel === "analysis") {
+        renderAnalysisPanel();
+        return;
+      }
       const items = state.query
         ? state.items.filter((item) => {
             const haystack = [
@@ -874,7 +1183,7 @@
 
       if (!items.length) {
         const debugHtml = state.panel === "opinion" && state.filteredOut.length ? renderFilteredOut() : "";
-        list.innerHTML = '<div class="state-card">' + emptyMessage() + '</div>' + debugHtml;
+        list.innerHTML = renderSectionTitle() + '<div class="state-card">' + emptyMessage() + '</div>' + debugHtml;
         return;
       }
 
@@ -883,6 +1192,7 @@
         : items.map((item) => {
         const platform = platformMeta(item);
         const dateText = item.dateKey ? formatDateKey(item.dateKey) : labels.realtime;
+        const heat = hotLevel(item);
         return `
           <a class="hot-card" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">
             <div class="rank">${escapeHtml(String(item.rank || "-"))}</div>
@@ -890,6 +1200,8 @@
               <div class="card-top">
                 <span class="platform-badge ${platform.className}">${platform.name}</span>
                 <span class="time">${dateText}</span>
+                <span class="tag ${heat.className}">${heat.icon} ${heat.text}</span>
+                ${Number(item.rank || 99) <= 10 ? '<span class="tag trend-up">↗ ' + labels.trendUp + '</span>' : ''}
                 ${item.isNew ? '<span class="new">' + labels.newHot + '</span>' : ''}
               </div>
               <h2 class="card-title">${escapeHtml(item.title || labels.hot)}</h2>
@@ -901,12 +1213,13 @@
           </a>
         `;
       }).join("");
-      list.innerHTML = cards + (state.panel === "opinion" && state.filteredOut.length ? renderFilteredOut() : "");
+      list.innerHTML = renderSectionTitle() + cards + (state.panel === "opinion" && state.filteredOut.length ? renderFilteredOut() : "");
     }
 
     function renderOpinionCard(item) {
       const statusTextValue = item.is_currently_hot ? labels.currentHot : labels.droppedHot;
       const statusClass = item.is_currently_hot ? "status-current" : "status-dropped";
+      const reasons = recommendationReasons(item);
       const platformTags = (item.platforms || [item.source || "weibo"]).map((source) => {
         const meta = platformMeta({ source });
         return '<span class="platform-badge ' + meta.className + '">' + meta.name + '</span>';
@@ -923,6 +1236,7 @@
               ${item.multi_platform ? '<span class="tag multi-tag">\u591a\u5e73\u53f0 ' + escapeHtml(String(item.platform_count || 2)) + '</span>' : ''}
             </div>
             <h2 class="card-title">${escapeHtml(item.title || labels.hot)}</h2>
+            <div class="card-meta">${reasons.map((reason) => '<span class="tag trend-up">' + escapeHtml(reason) + '</span>').join("")}</div>
             <div class="metric-grid">
               <span class="metric">${labels.rank}<strong>${escapeHtml(String(item.current_rank || "--"))}</strong></span>
               <span class="metric">${labels.bestRank}<strong>${escapeHtml(String(item.best_rank || "--"))}</strong></span>
@@ -933,6 +1247,75 @@
             </div>
           </div>
         </a>
+      `;
+    }
+
+    function renderSectionTitle() {
+      let title = labels.radar;
+      let hint = "\u70ed\u95e8\u6392\u34892\u5206\u949f\u81ea\u52a8\u5237\u65b0";
+      if (state.panel === "home") {
+        title = "\u201c\u201d\u4eca\u65e5\u24773\u62a5\u901f\u89c8".replace("\u201c\u201d", "");
+        hint = "\u805a\u5408\u70ed\u70b9\u4e0e\u8206\u60c5\u4e8b\u4ef6";
+      } else if (state.panel === "opinion") {
+        title = state.opinionFilters.value === "high" ? labels.topicLibrary : labels.database;
+        hint = "\u4fdd\u7559\u4eca\u5929\u548c\u6628\u5929\u7684\u6709\u6548\u9009\u9898";
+      } else if (state.view === "all") {
+        title = "\u5168\u90e8\u70ed\u641c\u8d8b\u52bf";
+        hint = "\u70ed\u95e8\u6392\u884c\u00b7\u65b0\u51fa\u73b0\u00b7\u5feb\u901f\u4e0a\u6da8";
+      }
+      return '<div class="section-title"><h2>' + escapeHtml(title) + '</h2><span>' + escapeHtml(hint) + '</span></div>';
+    }
+
+    function hotLevel(item) {
+      const value = Number(item.hot_value || 0);
+      const rank = Number(item.rank || 99);
+      if (value >= 800000 || rank <= 3) return { text: labels.hotLevelBoom, icon: "\u{1F525}", className: "heat-level-hot" };
+      if (value >= 300000 || rank <= 12) return { text: labels.hotLevelHigh, icon: "\u2B50", className: "heat-level-high" };
+      return { text: labels.hotLevelNormal, icon: "", className: "" };
+    }
+
+    function recommendationReasons(item) {
+      const reasons = [];
+      if (item.multi_platform || Number(item.platform_count || 0) > 1) reasons.push("\u591a\u5e73\u53f0\u4f20\u64ad");
+      if (Number(item.score || 0) >= 80) reasons.push("\u9ad8\u8206\u60c5\u4ef7\u503c");
+      if (Number(item.peak_hot_value || 0) >= 500000) reasons.push("\u6301\u7eed\u70ed\u5ea6\u9ad8");
+      if (["\u793e\u4f1a", "\u6c11\u751f", "\u516c\u5171\u5b89\u5168", "\u6559\u80b2", "\u533b\u7597"].includes(item.category)) reasons.push("\u793e\u4f1a\u5173\u6ce8\u5ea6\u9ad8");
+      return reasons.slice(0, 3);
+    }
+
+    function renderAnalysisPanel() {
+      const categories = new Map();
+      state.opinionPool.forEach((item) => categories.set(item.category || "\u5176\u4ed6", (categories.get(item.category || "\u5176\u4ed6") || 0) + 1));
+      const topCategories = [...categories.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const keywords = topCategories.map(([name]) => name).concat(state.items.slice(0, 6).map((item) => item.category || item.label || item.sourceName).filter(Boolean)).slice(0, 10);
+      const high = state.opinionPool.filter((item) => Number(item.score || 0) >= 80).length;
+      const multi = state.opinionPool.filter((item) => Number(item.platform_count || 0) > 1).length;
+      list.innerHTML = `
+        ${renderSectionTitle().replace(labels.radar, labels.analysisCenter)}
+        <div class="analysis-panel">
+          <section class="analysis-card">
+            <h3>\u4eca\u65e5\u8206\u60c5\u6982\u89c8</h3>
+            <div class="metric-grid">
+              <span class="metric">\u8206\u60c5\u4e8b\u4ef6<strong>${state.opinionPool.length}</strong></span>
+              <span class="metric">\u9ad8\u4ef7\u503c\u9009\u9898<strong>${high}</strong></span>
+              <span class="metric">\u591a\u5e73\u53f0\u4f20\u64ad<strong>${multi}</strong></span>
+              <span class="metric">\u4e3b\u8981\u7c7b\u522b<strong>${escapeHtml(topCategories[0]?.[0] || "--")}</strong></span>
+            </div>
+          </section>
+          <section class="analysis-card">
+            <h3>\u8206\u60c5\u5173\u952e\u8bcd\u4e91</h3>
+            <div class="keyword-cloud">${keywords.map((word) => '<span>' + escapeHtml(word) + '</span>').join("")}</div>
+          </section>
+          <section class="analysis-card">
+            <h3>AI \u5206\u6790\u5361\u7247</h3>
+            <div class="metric-grid">
+              <span class="metric">\u4e8b\u4ef6\u5f71\u54cd<strong>\u4f18\u5148\u5173\u6ce8\u9ad8\u5206\u4e0e\u591a\u5e73\u53f0\u9009\u9898</strong></span>
+              <span class="metric">\u4f20\u64ad\u8d8b\u52bf<strong>\u5f53\u524d\u4ee5\u793e\u4f1a\u6c11\u751f\u548c\u516c\u5171\u4e8b\u4ef6\u4e3a\u4e3b</strong></span>
+              <span class="metric">\u5173\u6ce8\u5efa\u8bae<strong>\u6838\u5bf9\u539f\u59cb\u94fe\u63a5\u540e\u7528\u4e8e\u62a5\u544a\u9009\u9898</strong></span>
+              <span class="metric">\u6570\u636e\u72b6\u6001<strong>\u9759\u6001\u91c7\u96c6\u6570\u636e\u5df2\u66f4\u65b0</strong></span>
+            </div>
+          </section>
+        </div>
       `;
     }
 
@@ -953,7 +1336,7 @@
     }
 
     function renderMode() {
-      hotMode.classList.toggle("active", state.panel === "hot");
+      hotMode.classList.toggle("active", state.panel === "hot" || state.panel === "home");
       opinionMode.classList.toggle("active", state.panel === "opinion");
       filteredMode.classList.toggle("active", state.panel === "hot" && state.view === "filtered");
       allMode.classList.toggle("active", state.panel === "hot" && state.view === "all");
@@ -975,6 +1358,16 @@
         const key = button.dataset.filter;
         const value = button.dataset.value || "";
         button.classList.toggle("active", Boolean(state.opinionFilters[key]) && state.opinionFilters[key] === value);
+      });
+      navItems.forEach((button) => {
+        const nav = button.dataset.nav;
+        button.classList.toggle("active",
+          (nav === "home" && state.panel === "home") ||
+          (nav === "hot" && state.panel === "hot") ||
+          (nav === "opinion" && state.panel === "opinion" && state.opinionFilters.value !== "high") ||
+          (nav === "filter" && state.panel === "opinion" && state.opinionFilters.value === "high") ||
+          (nav === "analysis" && state.panel === "analysis")
+        );
       });
     }
 
