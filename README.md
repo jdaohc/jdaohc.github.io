@@ -1,27 +1,44 @@
-# 微博实时热点监控网站
+# 多平台热点舆情雷达
 
-手机优先的多来源舆情热点监控网站，支持 Cloudflare Workers 备用部署和腾讯云 SCF 大陆优先部署。
+手机优先的多平台热点与舆情筛选网站。当前架构已迁移为免费方案：
+
+- GitHub Actions 每 5 分钟定时采集热点数据。
+- 采集结果写入 `data/hot-data.json`。
+- GitHub Pages 直接展示静态网页。
+- 前端不再依赖腾讯云 API。
 
 ## 功能
 
-- 展示微博和新华网/新华社公开内容热点
-- 显示排名、标题、热度、标签、最后更新时间
-- 每 5 分钟定时刷新，访问页面时也会按需刷新
-- 对新进入榜单的热点显示“新”标记
-- 点击热点跳转对应来源页面
-- 微博接口失败时自动重试，并展示最近一次成功缓存
-- 默认进入综合舆情筛选视图，可切换微博、新华网、全部热搜
+- 展示微博、新华网/新华社、今日头条、抖音、人民日报、知乎、其他新闻等来源的热点。
+- 保留实时热点首页、平台筛选、搜索、自动刷新和手机端 UI。
+- 保留舆情筛选池，记录今天和昨天具有社会舆情价值的热点。
+- 舆情池支持当前在榜/已下榜、分类、舆情价值评分、多平台热点识别。
+- 娱乐明星、饭圈营销和纯国外弱关联事件只在舆情池中过滤，实时热点首页仍展示原始热点。
+- 任一平台抓取失败不会影响其他平台，失败时保留上一次数据。
 
-## 命令
+## 常用命令
 
 ```bash
 npm test
-npm run dev
-npm run deploy
+npm run collect
 ```
 
-## 部署
+## 免费部署
 
-项目配置在 `wrangler.toml` 中，部署到 Cloudflare Workers 后会获得一个 `workers.dev` 公网地址。
+部署由 GitHub 完成：
 
-腾讯云 SCF 入口为 `src/tencent-scf.cjs`，部署配置为 `serverless.yml`。HTTP 触发器提供网页和 API，定时触发器每 5 分钟刷新缓存。
+- `.github/workflows/update-hot-data.yml`：定时抓取并提交 `data/hot-data.json`。
+- `index.html`：GitHub Pages 页面。
+- `data/hot-data.json`：前端读取的数据源。
+
+GitHub Pages 地址：
+
+```text
+https://jdaohc.github.io/
+```
+
+舆情池入口：
+
+```text
+https://jdaohc.github.io/?panel=opinion
+```

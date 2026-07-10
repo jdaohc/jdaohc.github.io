@@ -48,9 +48,9 @@ export default {
       return new Response("ok", { headers: { "content-type": "text/plain;charset=utf-8" } });
     }
 
-    return new Response(renderPage(), {
+    return new Response("GitHub Pages reads data/hot-data.json. Run npm run collect to refresh data.", {
       headers: {
-        "content-type": "text/html;charset=utf-8",
+        "content-type": "text/plain;charset=utf-8",
         "cache-control": "public, max-age=60"
       }
     });

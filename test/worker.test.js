@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 import worker, {
   buildOpinionPayload,
   buildViewPayload,
@@ -11,9 +10,7 @@ import worker, {
   parseXinhuaLinks,
   updateOpinionPool
 } from "../src/worker.js";
-
-const require = createRequire(import.meta.url);
-const { main_handler } = require("../src/tencent-scf.cjs");
+import { collectHotData } from "../scripts/collect-hot-data.mjs";
 
 const CN = {
   none: "\u6682\u65e0",
@@ -140,7 +137,7 @@ test("keeps public opinion topics and filters foreign or entertainment topics", 
 test("filtered Xinhua public-opinion items must be from today or yesterday", () => {
   const now = new Date("2026-07-07T10:00:00+08:00");
   const items = [
-    { ...topic(CN.guangxiFlood), source: "weibo", sourceName: CN.weibo },
+    { ...topic(CN.guangxiFlood), source: "weibo", sourceName: CN.weibo, dateKey: "20260707", publish_time: "2026-07-07T02:00:00.000Z" },
     { ...topic(CN.xinhuaFlood), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260707" },
     { ...topic(CN.courtFraud), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260706" },
     { ...topic(CN.policeCrash), source: "xinhua", sourceName: CN.xinhuaName, label: CN.xinhua, dateKey: "20260705" },
@@ -255,7 +252,7 @@ test("supports newly added platform source filters and unavailable status", () =
 });
 
 test("opinion pool stores qualified topics with category, score and current status", () => {
-  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const now = Date.now();
   const { pool, filteredOut } = updateOpinionPool([], [
     opinionTopic("\u67d0\u660e\u661f\u7ea2\u6bef\u9020\u578b\u5f15\u70ed\u8bae", { rank: 2, hot_value: 900000 }),
     opinionTopic("\u5e02\u573a\u76d1\u7ba1\u90e8\u95e8\u901a\u62a5\u9910\u996e\u98df\u54c1\u5b89\u5168\u95ee\u9898", { rank: 3, hot_value: 1200000 })
@@ -288,7 +285,7 @@ test("opinion pool keeps yesterday and today dropped topics with peak data", () 
 });
 
 test("opinion pool filters pure foreign events but keeps domestic impact topics", () => {
-  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const now = Date.now();
   const { pool, filteredOut } = updateOpinionPool([], [
     opinionTopic("\u7f8e\u56fd\u660e\u661f\u6f14\u5531\u4f1a\u73b0\u573a\u706b\u7206", { rank: 1, hot_value: 2000000 }),
     opinionTopic("\u65e5\u672c\u98df\u54c1\u5b89\u5168\u95ee\u9898\u5f71\u54cd\u56fd\u5185\u8fdb\u53e3\u6d88\u8d39", { rank: 8, hot_value: 300000 })
@@ -299,7 +296,7 @@ test("opinion pool filters pure foreign events but keeps domestic impact topics"
 });
 
 test("opinion pool merges similar multi-platform social topics", () => {
-  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const now = Date.now();
   const { pool } = updateOpinionPool([], [
     opinionTopic("\u535a\u7269\u9986\u901a\u62a5\u6e38\u5ba2\u635f\u574f\u6587\u7269", { source: "weibo", rank: 5, hot_value: 400000 }),
     opinionTopic("\u535a\u7269\u9986\u901a\u62a5\u4e00\u6e38\u5ba2\u635f\u574f\u6587\u7269\u5904\u7f6e\u60c5\u51b5", { source: "xinhua", rank: 1, hot_value: 100000 })
@@ -314,7 +311,7 @@ test("opinion pool merges similar multi-platform social topics", () => {
 });
 
 test("opinion api filters, sorts and exposes debug filtered records", () => {
-  const now = Date.parse("2026-07-07T10:00:00+08:00");
+  const now = Date.now();
   const result = updateOpinionPool([], [
     opinionTopic("\u6cd5\u9662\u901a\u62a5\u6d88\u8d39\u7ef4\u6743\u6848\u4ef6\u8fdb\u5c55", { source: "weibo", rank: 4, hot_value: 700000 }),
     opinionTopic("\u67d0\u5076\u50cf\u65b0\u6b4c\u4ee3\u8a00\u5b98\u5ba3", { source: "douyin", rank: 1, hot_value: 1000000 })
@@ -337,42 +334,38 @@ test("opinion api filters, sorts and exposes debug filtered records", () => {
   assert.equal(api.filteredOut[0].reason, "\u5a31\u4e50\u660e\u661f\u5185\u5bb9");
 });
 
-test("Tencent SCF adapter preserves object query parameters", async () => {
-  installCache(null);
-  globalThis.fetch = async (url) => {
-    const target = String(url);
-    if (target.includes("weibo.com")) {
-      return new Response(
-        JSON.stringify({
-          data: {
-            realtime: [
-              { word: CN.guangxiFlood, note: CN.guangxiFlood, raw_hot: 100000, label_name: CN.hot }
-            ]
-          }
-        }),
-        { status: 200, headers: { "content-type": "application/json" } }
-      );
-    }
-
-    return new Response(
-      `<a href="/politics/${todayDateKey()}/example-id/c.html">${CN.xinhuaFloodLong}</a>`,
-      { status: 200, headers: { "content-type": "text/html" } }
-    );
-  };
-
-  const response = await main_handler({
-    httpMethod: "GET",
-    path: "/api/hot",
-    queryString: { source: "xinhua", view: "all", force: "1" },
-    headers: { host: "scf.local" }
+test("GitHub Actions collector builds static data payload for Pages", async () => {
+  const now = Date.now();
+  const payload = await collectHotData({
+    nowMs: now,
+    previous: {
+      items: [opinionTopic("\u65e7\u70ed\u70b9", { source: "weibo" })],
+      opinionPool: []
+    },
+    fetcher: async () => ({
+      items: [
+        opinionTopic("\u65e7\u70ed\u70b9", { source: "weibo", rank: 1, hot_value: 900000 }),
+        opinionTopic("\u5e02\u573a\u76d1\u7ba1\u90e8\u95e8\u901a\u62a5\u9910\u996e\u98df\u54c1\u5b89\u5168\u95ee\u9898", { source: "toutiao", rank: 2, hot_value: 600000 }),
+        opinionTopic("\u67d0\u660e\u661f\u673a\u573a\u56fe\u66dd\u5149", { source: "douyin", rank: 3, hot_value: 500000 })
+      ],
+      statuses: [
+        { id: "weibo", name: CN.weibo, ok: true, fallback: false, count: 1, error: null },
+        { id: "toutiao", name: "\u4eca\u65e5\u5934\u6761", ok: true, fallback: false, count: 1, error: null },
+        { id: "douyin", name: "\u6296\u97f3", ok: true, fallback: false, count: 1, error: null }
+      ]
+    })
   });
-  const payload = JSON.parse(response.body);
 
-  assert.equal(response.statusCode, 200);
-  assert.equal(payload.sourceFilter, "xinhua");
-  assert.equal(payload.view, "all");
-  assert.equal(payload.items.length, 1);
-  assert.equal(payload.items[0].source, "xinhua");
+  assert.equal(payload.source, "github-actions");
+  assert.equal(payload.items.length, 3);
+  assert.equal(payload.items[0].isNew, false);
+  assert.equal(payload.items[1].isNew, true);
+  assert.equal(payload.publicOpinionItems.length, 1);
+  assert.equal(payload.opinionPool.length, 1);
+  assert.equal(payload.opinionPool[0].category, "\u98df\u54c1\u5b89\u5168");
+  assert.equal(payload.sourceCounts.toutiao, 1);
+  assert.ok(payload.categories.includes("\u6d88\u8d39"));
+  assert.ok(payload.filteredOut.some((item) => item.reason === "\u5a31\u4e50\u660e\u661f\u5185\u5bb9"));
 });
 
 function topic(title) {
@@ -401,8 +394,8 @@ function opinionTopic(title, overrides = {}) {
     heat: formatHeat(hotValue),
     tag: overrides.tag || CN.hot,
     label: overrides.label || CN.hot,
-    publish_time: overrides.publish_time || "2026-07-07T02:00:00.000Z",
-    dateKey: overrides.dateKey || "20260707",
+    publish_time: overrides.publish_time || new Date().toISOString(),
+    dateKey: overrides.dateKey || todayDateKey(),
     url: overrides.url || "#",
     isNew: false,
     is_new: false

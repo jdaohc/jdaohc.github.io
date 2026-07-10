@@ -2,14 +2,10 @@
   "name": "weibo-hot-monitor",
   "version": "1.0.0",
   "private": true,
-  "description": "A mobile-first Weibo realtime hot search monitor on Cloudflare Workers.",
+  "description": "A mobile-first multi-platform hot topic and public opinion radar on GitHub Pages.",
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
-  },
-  "devDependencies": {
-    "wrangler": "^4.24.0"
+    "collect": "node scripts/collect-hot-data.mjs",
+    "test": "node --test"
   }
 }

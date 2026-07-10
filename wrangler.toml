@@ -1,8 +1,0 @@
-name = "weibo-hot-monitor"
-account_id = "48d7d634a76f7f5fbcdeb8d05f104454"
-main = "src/worker.js"
-compatibility_date = "2026-07-06"
-workers_dev = true
-
-[triggers]
-crons = ["*/5 * * * *"]

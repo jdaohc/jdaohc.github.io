@@ -550,7 +550,7 @@
   </main>
 
   <script>
-    const API_BASE = "https://1451096226-kll61iiom1.ap-guangzhou.tencentscf.com";
+    const DATA_URL = "data/hot-data.json";
     const SUPPORTED_SOURCES = ["weibo", "xinhua", "zhihu", "toutiao", "douyin", "people", "news"];
     const labels = {
       connecting: "\u8fde\u63a5\u4e2d",
@@ -725,22 +725,10 @@
       if (!state.loaded) renderLoading();
 
       try {
-        const apiParams = new URLSearchParams();
-        const endpoint = state.panel === "opinion" ? "/api/opinion" : "/api/hot";
-        if (state.panel === "opinion") {
-          if (state.sourceFilter !== "all") apiParams.set("platform", state.sourceFilter);
-          Object.entries(state.opinionFilters).forEach(([key, value]) => {
-            if (value && !(key === "sort" && value === "score")) apiParams.set(key, value);
-          });
-          apiParams.set("sort", state.opinionFilters.sort || "score");
-        } else {
-          apiParams.set("view", state.view);
-          apiParams.set("source", state.sourceFilter);
-        }
-        if (force) apiParams.set("force", "1");
-        const response = await fetch(API_BASE + endpoint + "?" + apiParams.toString(), { cache: "no-store" });
+        const response = await fetch(DATA_URL + "?v=" + (force ? Date.now() : Math.floor(Date.now() / 60000)), { cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const data = await response.json();
+        const payload = await response.json();
+        const data = state.panel === "opinion" ? buildOpinionData(payload) : buildHotData(payload);
 
         state.items = Array.isArray(data.items) ? data.items : [];
         state.filteredOut = Array.isArray(data.filteredOut) ? data.filteredOut : [];
@@ -773,6 +761,80 @@
         state.loading = false;
         list.classList.remove("refreshing");
       }
+    }
+
+    function buildHotData(payload) {
+      const allItems = Array.isArray(payload.items) ? payload.items : [];
+      const sourceItems = filterBySource(allItems, state.sourceFilter);
+      const publicItems = filterBySource(Array.isArray(payload.publicOpinionItems) ? payload.publicOpinionItems : [], state.sourceFilter);
+      const items = state.view === "all" ? sourceItems : publicItems;
+      return {
+        ...payload,
+        view: state.view,
+        sourceFilter: state.sourceFilter,
+        totalItems: sourceItems.length,
+        visibleItems: items.length,
+        sourceCounts: payload.sourceCounts || countSources(allItems),
+        sourceStatus: payload.sourceStatus || [],
+        items
+      };
+    }
+
+    function buildOpinionData(payload) {
+      const today = getDateKey(0);
+      const yesterday = getDateKey(1);
+      let items = Array.isArray(payload.opinionPool) ? payload.opinionPool : [];
+      items = items.filter((item) => item.date === today || item.date === yesterday);
+      if (state.sourceFilter !== "all") items = items.filter((item) => (item.platforms || [item.source || "weibo"]).includes(state.sourceFilter));
+      if (state.opinionFilters.category) items = items.filter((item) => item.category === state.opinionFilters.category);
+      if (state.opinionFilters.day === "today") items = items.filter((item) => item.date === today);
+      if (state.opinionFilters.day === "yesterday") items = items.filter((item) => item.date === yesterday);
+      if (state.opinionFilters.status === "current") items = items.filter((item) => item.is_currently_hot);
+      if (state.opinionFilters.status === "dropped") items = items.filter((item) => !item.is_currently_hot);
+      if (state.opinionFilters.value === "high") items = items.filter((item) => Number(item.score || 0) >= 80);
+      if (state.opinionFilters.multi === "1") items = items.filter((item) => Number(item.platform_count || 0) > 1);
+      items = sortOpinionItems(items, state.opinionFilters.sort || "score");
+      return {
+        ...payload,
+        filters: { ...state.opinionFilters, platform: state.sourceFilter },
+        categories: payload.categories || [],
+        sourceCounts: payload.sourceCounts || countSources(payload.items || []),
+        sourceStatus: payload.sourceStatus || [],
+        totalItems: items.length,
+        visibleItems: items.length,
+        filteredOut: state.opinionFilters.debug === "1" ? (payload.filteredOut || []) : [],
+        items
+      };
+    }
+
+    function filterBySource(items, sourceFilter) {
+      return sourceFilter === "all" ? items : items.filter((item) => (item.source || "weibo") === sourceFilter);
+    }
+
+    function countSources(items) {
+      const counts = { all: items.length, weibo: 0, xinhua: 0, zhihu: 0, toutiao: 0, douyin: 0, people: 0, news: 0 };
+      items.forEach((item) => {
+        const source = item.source || "weibo";
+        counts[source] = (counts[source] || 0) + 1;
+      });
+      return counts;
+    }
+
+    function sortOpinionItems(items, sort) {
+      const list = [...items];
+      const byNumber = (field) => (a, b) => Number(b[field] || 0) - Number(a[field] || 0);
+      const byDate = (field) => (a, b) => new Date(b[field] || 0) - new Date(a[field] || 0);
+      if (sort === "current_heat") return list.sort(byNumber("hot_value"));
+      if (sort === "peak_heat") return list.sort(byNumber("peak_hot_value"));
+      if (sort === "first_seen") return list.sort(byDate("first_seen"));
+      if (sort === "last_seen") return list.sort(byDate("last_seen"));
+      if (sort === "duration") {
+        return list.sort((a, b) =>
+          (new Date(b.last_seen || 0) - new Date(b.first_seen || 0)) -
+          (new Date(a.last_seen || 0) - new Date(a.first_seen || 0))
+        );
+      }
+      return list.sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || new Date(b.last_seen || 0) - new Date(a.last_seen || 0));
     }
 
     function renderStats() {
